@@ -156,9 +156,7 @@ aside.left{ grid-area:left; }
 .sphere-fill{ pointer-events:none; }
 .atmosphere{ pointer-events:none; }
 .specular{ pointer-events:none; }
-.land{ fill:var(--land); stroke:none; vector-effect:non-scaling-stroke; transition: opacity .3s; }
-.filtering .land{ opacity:0.5; }
-.filtering .graticule{ opacity:0.2; }
+.land{ fill:var(--land); stroke:none; vector-effect:non-scaling-stroke; }
 .borders{ fill:none; stroke:oklch(0.32 0.01 240); stroke-width:0.5; opacity:0.9; vector-effect:non-scaling-stroke; stroke-linejoin:round; }
 .borders-outer{ fill:none; stroke:oklch(0.40 0.01 240); stroke-width:0.7; vector-effect:non-scaling-stroke; stroke-linejoin:round; }
 .provinces{
@@ -193,23 +191,16 @@ aside.left{ grid-area:left; }
 .marker{ cursor:pointer; transition: opacity .2s; }
 .marker .ring{ fill:none; stroke:currentColor; stroke-width:1; opacity:0.4; }
 .marker .core{ fill:currentColor; }
-.marker.dim{ opacity:0.08; pointer-events:none; }
-.marker.dim .ring{ opacity:0; }
-.marker.dim .core{ r:2; }
-
-.marker.hl{
-  filter: drop-shadow(0 0 6px currentColor) drop-shadow(0 0 12px currentColor);
-}
-.marker.hl .core{ filter: brightness(1.4); }
-.marker.hl .ring{ opacity:0.8; stroke-width:1.5; }
+.marker.dim{ opacity:0.12; }
+.marker.dim .ring{ opacity:0.15; }
 .marker.hl .pulse{
-  fill:none; stroke:currentColor; stroke-width:1.5;
+  fill:none; stroke:currentColor; stroke-width:1;
   animation: pulse 1.8s ease-out infinite;
   transform-origin: center;
 }
 @keyframes pulse{
-  0%   { r: 6;  opacity:0.8; stroke-width:2; }
-  100% { r: 28; opacity:0;   stroke-width:0.5; }
+  0%   { r: 6;  opacity:0.7; stroke-width:1.5; }
+  100% { r: 22; opacity:0;   stroke-width:0.5; }
 }
 
 .marker-label{
@@ -296,39 +287,6 @@ footer .leg .circ{ border:1px solid var(--ink-3); border-radius:50%; }
 .zoom-ctl button + button{ border-top:1px solid var(--rule-2); }
 .zoom-ctl #z-reset{ font-size:15px; }
 
-/* Region navigation buttons — overlaid on the map, below zoom controls */
-.region-nav{
-  position:absolute; top:140px; right:16px; z-index:20;
-  display:flex; flex-direction:column; gap:4px;
-}
-.region-nav button{
-  padding:6px 10px;
-  background:oklch(0.14 0.01 240 / 0.9);
-  border:1px solid var(--rule);
-  color:var(--ink-2); cursor:pointer;
-  font-family:var(--font-mono); font-size:11px; font-weight:600;
-  letter-spacing:0.08em; text-transform:uppercase;
-  border-radius:3px;
-  backdrop-filter:blur(4px);
-  transition:background .15s, color .15s, border-color .15s;
-}
-.region-nav button:hover{ background:var(--bg-3); color:var(--ink); border-color:var(--ink-3); }
-.region-nav button.active-region{ border-color:var(--accent); color:var(--accent); }
-
-/* Filter callout — contextual annotation on the map */
-.filter-callout{
-  position:absolute; left:50%; transform:translateX(-50%);
-  font-family:var(--font-mono); font-size:11px; color:var(--ink-2);
-  letter-spacing:0.04em; line-height:1.5;
-  padding:8px 16px; border:1px solid var(--accent); border-radius:3px;
-  background:oklch(0.14 0.01 240 / 0.88); backdrop-filter:blur(6px);
-  max-width:520px; text-align:center;
-  pointer-events:none; z-index:25;
-  opacity:0; transition:opacity .4s;
-}
-.filter-callout.visible{ opacity:1; }
-.filter-callout strong{ color:var(--accent); }
-
 .zoom-hint{
   position:absolute; bottom:16px; left:50%; transform:translateX(-50%);
   font-family:var(--font-mono); font-size:10.5px; color:var(--ink-3);
@@ -347,58 +305,52 @@ footer .leg .circ{ border:1px solid var(--ink-3); border-radius:50%; }
 // Global SDL initiatives — geocoded from Global-SDL-Landscape.md
 window.SDL_DATA = [
   // National / Consortium
-  { id:"accel",     name:"Acceleration Consortium",            org:"University of Toronto",        city:"Toronto",       country:"Canada",       flag:"\u{1F1E8}\u{1F1E6}", lat:43.66, lon:-79.40, tier:"national",  domain:"chemistry",      maturity:"operational", charact:"synthesis-only", ai:"partial", scale:"multi-lab",     invest:500, investLabel:"$500M (CFREF+matched)" },
-  { id:"capex",     name:"CAPeX Pioneer Center",               org:"DTU + 4 universities",         city:"Lyngby",        country:"Denmark",      flag:"\u{1F1E9}\u{1F1F0}", lat:55.79, lon:12.52,  tier:"national",  domain:"energy",         maturity:"operational", charact:"advanced-multimodal", ai:"strong",  scale:"national",      invest:43,  investLabel:"\u20AC40M / 13 yrs" },
-  { id:"bigmap",    name:"BIG-MAP / FULL-MAP",                 org:"Battery2030+ consortium",      city:"Brussels",      country:"EU",           flag:"\u{1F1EA}\u{1F1FA}", lat:50.85, lon:4.35,   tier:"national",  domain:"batteries",      maturity:"operational", charact:"advanced-multimodal", ai:"strong",  scale:"pan-european",  invest:40,  investLabel:"\u20AC40M (H2020+HE)" },
-  { id:"doe",       name:"US DOE National Labs",               org:"DOE (ARPA-E + CHIPS)",         city:"Washington DC", country:"USA",          flag:"\u{1F1FA}\u{1F1F8}", lat:38.90, lon:-77.04, tier:"national",  domain:"materials",      maturity:"operational", charact:"multi-technique", ai:"strong",  scale:"17 labs",        invest:140, investLabel:"$140M" },
-  { id:"korea500",  name:"Korea 500 SDL Initiative",           org:"MOTIE AI+R&D Strategy",        city:"Seoul",         country:"Korea",        flag:"\u{1F1F0}\u{1F1F7}", lat:37.57, lon:126.98, tier:"national",  domain:"cross-domain",   maturity:"operational", charact:"multi-technique", ai:"strong",  scale:"national",      invest:320, investLabel:"$320M by 2035" },
-  { id:"aria",      name:"UK ARIA AI Scientists",              org:"ARIA",                         city:"London",        country:"UK",           flag:"\u{1F1EC}\u{1F1E7}", lat:51.51, lon:-0.13,  tier:"national",  domain:"cross-domain",   maturity:"prototype",   charact:"single-technique", ai:"strong",  scale:"national",      invest:8,   investLabel:"\u00A36M" },
-  { id:"disclabnl", name:"DiscoveryLabNL",                     org:"NWO LSRI",                     city:"Eindhoven",     country:"Netherlands",  flag:"\u{1F1F3}\u{1F1F1}", lat:51.44, lon:5.48,   tier:"national",  domain:"materials",      maturity:"concept",     charact:"advanced-multimodal", ai:"planned", scale:"national",      invest:30, investLabel:"\u20AC30M (planned)" },
-  { id:"bigchem",   name:"Big Chemistry",                      org:"Radboud + TU/e ICMS hub",      city:"Nijmegen",      country:"Netherlands",  flag:"\u{1F1F3}\u{1F1F1}", lat:51.82, lon:5.87,   tier:"national",  domain:"chemistry",      maturity:"operational", charact:"single-technique", ai:"partial", scale:"national",      invest:225, investLabel:"\u20AC207.5M (NGF)" },
-  { id:"diadem",    name:"PEPR DIADEM",                        org:"CNRS + CEA (France 2030)",     city:"Paris",         country:"France",       flag:"\u{1F1EB}\u{1F1F7}", lat:48.86, lon:2.35,   tier:"national",  domain:"materials",      maturity:"operational", charact:"advanced-multimodal", ai:"partial", scale:"national",      invest:92,  investLabel:"\u20AC85M / 8 yrs" },
+  { id:"accel",     name:"Acceleration Consortium",            org:"University of Toronto",        city:"Toronto",       country:"Canada",       flag:"\u{1F1E8}\u{1F1E6}", lat:43.66, lon:-79.40, tier:"national",  domain:"chemistry",      maturity:"operational", charact:"none",      ai:"partial", scale:"multi-lab",     invest:500, investLabel:"$500M (CFREF+matched)" },
+  { id:"capex",     name:"CAPeX Pioneer Center",               org:"DTU + 4 universities",         city:"Lyngby",        country:"Denmark",      flag:"\u{1F1E9}\u{1F1F0}", lat:55.79, lon:12.52,  tier:"national",  domain:"energy",         maturity:"operational", charact:"operando",   ai:"strong",  scale:"national",      invest:43,  investLabel:"\u20AC40M / 13 yrs" },
+  { id:"bigmap",    name:"BIG-MAP / FULL-MAP",                 org:"Battery2030+ consortium",      city:"Brussels",      country:"EU",           flag:"\u{1F1EA}\u{1F1FA}", lat:50.85, lon:4.35,   tier:"national",  domain:"batteries",      maturity:"operational", charact:"integrated", ai:"strong",  scale:"pan-european",  invest:40,  investLabel:"\u20AC40M (H2020+HE)" },
+  { id:"doe",       name:"US DOE National Labs",               org:"DOE (ARPA-E + CHIPS)",         city:"Washington DC", country:"USA",          flag:"\u{1F1FA}\u{1F1F8}", lat:38.90, lon:-77.04, tier:"national",  domain:"materials",      maturity:"operational", charact:"partial",    ai:"strong",  scale:"17 labs",        invest:140, investLabel:"$140M" },
+  { id:"korea500",  name:"Korea 500 SDL Initiative",           org:"MOTIE AI+R&D Strategy",        city:"Seoul",         country:"Korea",        flag:"\u{1F1F0}\u{1F1F7}", lat:37.57, lon:126.98, tier:"national",  domain:"cross-domain",   maturity:"operational", charact:"xrd",        ai:"strong",  scale:"national",      invest:320, investLabel:"$320M by 2035" },
+  { id:"aria",      name:"UK ARIA AI Scientists",              org:"ARIA",                         city:"London",        country:"UK",           flag:"\u{1F1EC}\u{1F1E7}", lat:51.51, lon:-0.13,  tier:"national",  domain:"cross-domain",   maturity:"prototype",   charact:"limited",    ai:"strong",  scale:"national",      invest:8,   investLabel:"\u00A36M" },
+  { id:"disclabnl", name:"DiscoveryLabNL",                     org:"NWO LSRI",                     city:"Eindhoven",     country:"Netherlands",  flag:"\u{1F1F3}\u{1F1F1}", lat:51.44, lon:5.48,   tier:"national",  domain:"materials",      maturity:"concept",     charact:"pillar",     ai:"planned", scale:"national",      invest:110, investLabel:"\u20AC100M (planned)" },
+  { id:"bigchem",   name:"Big Chemistry",                      org:"Radboud + TU/e ICMS hub",      city:"Nijmegen",      country:"Netherlands",  flag:"\u{1F1F3}\u{1F1F1}", lat:51.82, lon:5.87,   tier:"national",  domain:"chemistry",      maturity:"operational", charact:"none",       ai:"partial", scale:"national",      invest:225, investLabel:"\u20AC207.5M (NGF)" },
+  { id:"diadem",    name:"PEPR DIADEM",                        org:"CNRS + CEA (France 2030)",     city:"Paris",         country:"France",       flag:"\u{1F1EB}\u{1F1F7}", lat:48.86, lon:2.35,   tier:"national",  domain:"materials",      maturity:"operational", charact:"operando",   ai:"partial", scale:"national",      invest:92,  investLabel:"\u20AC85M / 8 yrs" },
 
   // Academic / Single institution
-  { id:"alab",      name:"A-Lab",                              org:"Berkeley / LBNL",              city:"Berkeley",      country:"USA",          flag:"\u{1F1FA}\u{1F1F8}", lat:37.87, lon:-122.27,tier:"academic",  domain:"materials",      maturity:"operational", charact:"single-technique", ai:"strong",  scale:"single",        invest:0,   investLabel:"\u2014" },
-  { id:"polybot",   name:"Polybot",                            org:"Argonne (CNM)",                city:"Lemont",        country:"USA",          flag:"\u{1F1FA}\u{1F1F8}", lat:41.67, lon:-87.99, tier:"academic",  domain:"materials",      maturity:"operational", charact:"multi-technique", ai:"strong",  scale:"single",        invest:0,   investLabel:"\u2014" },
-  { id:"cmucloud",  name:"CMU Cloud Lab",                      org:"Carnegie Mellon",              city:"Pittsburgh",    country:"USA",          flag:"\u{1F1FA}\u{1F1F8}", lat:40.44, lon:-79.99, tier:"academic",  domain:"cross-domain",   maturity:"operational", charact:"multi-technique", ai:"strong",  scale:"single",        invest:0,   investLabel:"\u2014" },
-  { id:"coscient",  name:"Coscientist",                        org:"CMU (Gomes Group)",            city:"Pittsburgh",    country:"USA",          flag:"\u{1F1FA}\u{1F1F8}", lat:40.45, lon:-79.95, tier:"academic",  domain:"chemistry",      maturity:"prototype",   charact:"synthesis-only", ai:"strong",  scale:"single",        invest:0,   investLabel:"\u2014" },
-  { id:"abolh",     name:"Abolhasani Lab",                     org:"NC State",                     city:"Raleigh",       country:"USA",          flag:"\u{1F1FA}\u{1F1F8}", lat:35.78, lon:-78.64, tier:"academic",  domain:"chemistry",      maturity:"operational", charact:"single-technique", ai:"strong",  scale:"single",        invest:0,   investLabel:"\u2014" },
-  { id:"genesis",   name:"Genesis",                            org:"Chalmers (King Group)",        city:"Gothenburg",    country:"Sweden",       flag:"\u{1F1F8}\u{1F1EA}", lat:57.69, lon:11.98,  tier:"academic",  domain:"biology",        maturity:"prototype",   charact:"multi-technique", ai:"strong",  scale:"single",        invest:1.3, investLabel:"\u00A31M" },
-  { id:"cooper",    name:"Cooper Lab",                         org:"Liverpool",                    city:"Liverpool",     country:"UK",           flag:"\u{1F1EC}\u{1F1E7}", lat:53.41, lon:-2.99,  tier:"academic",  domain:"materials",      maturity:"operational", charact:"multi-technique", ai:"strong",  scale:"single",        invest:0,   investLabel:"\u2014" },
-  { id:"amadap",    name:"AMADAP",                             org:"FAU Erlangen",                 city:"Erlangen",      country:"Germany",      flag:"\u{1F1E9}\u{1F1EA}", lat:49.60, lon:11.00,  tier:"academic",  domain:"materials",      maturity:"prototype",   charact:"multi-technique", ai:"strong",  scale:"single",        invest:0,   investLabel:"\u2014" },
-  { id:"nims",      name:"NIMS Autonomous AI Network",         org:"NIMS + Tsukuba",               city:"Tsukuba",       country:"Japan",        flag:"\u{1F1EF}\u{1F1F5}", lat:36.08, lon:140.11, tier:"academic",  domain:"materials",      maturity:"prototype",   charact:"single-technique", ai:"strong",  scale:"multi-inst",    invest:0,   investLabel:"\u2014" },
-  { id:"dlab",      name:"dLab",                               org:"U Tokyo",                      city:"Tokyo",         country:"Japan",        flag:"\u{1F1EF}\u{1F1F5}", lat:35.71, lon:139.76, tier:"academic",  domain:"materials",      maturity:"prototype",   charact:"multi-technique", ai:"strong",  scale:"single",        invest:0,   investLabel:"\u2014" },
-  { id:"kaist",     name:"KAIST-POSCO Autonomous Lab",         org:"KAIST + POSCO",                city:"Daejeon",       country:"Korea",        flag:"\u{1F1F0}\u{1F1F7}", lat:36.37, lon:127.36, tier:"academic",  domain:"batteries",      maturity:"operational", charact:"single-technique", ai:"strong",  scale:"industry-academia",invest:0,investLabel:"\u2014" },
-  { id:"kist",      name:"KIST MARK System",                   org:"KIST",                         city:"Seoul",         country:"Korea",        flag:"\u{1F1F0}\u{1F1F7}", lat:37.60, lon:127.05, tier:"academic",  domain:"chemistry",      maturity:"prototype",   charact:"multi-technique", ai:"strong",  scale:"single",        invest:0,   investLabel:"\u2014" },
-  { id:"snu",       name:"SNU SDL Ecosystem",                  org:"SNU / Jung Lab",               city:"Seoul",         country:"Korea",        flag:"\u{1F1F0}\u{1F1F7}", lat:37.46, lon:126.95, tier:"academic",  domain:"cross-domain",   maturity:"operational", charact:"multi-technique", ai:"strong",  scale:"multi-lab",     invest:0,   investLabel:"\u2014" },
-  { id:"ustc",      name:"ChemAgents",                         org:"USTC Hefei",                   city:"Hefei",         country:"China",        flag:"\u{1F1E8}\u{1F1F3}", lat:31.82, lon:117.23, tier:"academic",  domain:"materials",      maturity:"operational", charact:"single-technique", ai:"strong",  scale:"single",        invest:0,   investLabel:"\u2014" },
-  { id:"noel",      name:"No\u00EBl Group",                    org:"U Amsterdam",                  city:"Amsterdam",     country:"Netherlands",  flag:"\u{1F1F3}\u{1F1F1}", lat:52.36, lon:4.88,   tier:"academic",  domain:"chemistry",      maturity:"operational", charact:"single-technique", ai:"strong",  scale:"single",        invest:0,   investLabel:"\u2014" },
+  { id:"alab",      name:"A-Lab",                              org:"Berkeley / LBNL",              city:"Berkeley",      country:"USA",          flag:"\u{1F1FA}\u{1F1F8}", lat:37.87, lon:-122.27,tier:"academic",  domain:"materials",      maturity:"operational", charact:"xrd",        ai:"strong",  scale:"single",        invest:0,   investLabel:"\u2014" },
+  { id:"polybot",   name:"Polybot",                            org:"Argonne (CNM)",                city:"Lemont",        country:"USA",          flag:"\u{1F1FA}\u{1F1F8}", lat:41.67, lon:-87.99, tier:"academic",  domain:"materials",      maturity:"operational", charact:"integrated", ai:"strong",  scale:"single",        invest:0,   investLabel:"\u2014" },
+  { id:"cmucloud",  name:"CMU Cloud Lab",                      org:"Carnegie Mellon",              city:"Pittsburgh",    country:"USA",          flag:"\u{1F1FA}\u{1F1F8}", lat:40.44, lon:-79.99, tier:"academic",  domain:"cross-domain",   maturity:"operational", charact:"multimodal", ai:"strong",  scale:"single",        invest:0,   investLabel:"\u2014" },
+  { id:"coscient",  name:"Coscientist",                        org:"CMU (Gomes Group)",            city:"Pittsburgh",    country:"USA",          flag:"\u{1F1FA}\u{1F1F8}", lat:40.45, lon:-79.95, tier:"academic",  domain:"chemistry",      maturity:"prototype",   charact:"none",      ai:"strong",  scale:"single",        invest:0,   investLabel:"\u2014" },
+  { id:"abolh",     name:"Abolhasani Lab",                     org:"NC State",                     city:"Raleigh",       country:"USA",          flag:"\u{1F1FA}\u{1F1F8}", lat:35.78, lon:-78.64, tier:"academic",  domain:"chemistry",      maturity:"operational", charact:"integrated", ai:"strong",  scale:"single",        invest:0,   investLabel:"\u2014" },
+  { id:"genesis",   name:"Genesis",                            org:"Chalmers (King Group)",        city:"Gothenburg",    country:"Sweden",       flag:"\u{1F1F8}\u{1F1EA}", lat:57.69, lon:11.98,  tier:"academic",  domain:"biology",        maturity:"prototype",   charact:"integrated", ai:"strong",  scale:"single",        invest:1.3, investLabel:"\u00A31M" },
+  { id:"cooper",    name:"Cooper Lab",                         org:"Liverpool",                    city:"Liverpool",     country:"UK",           flag:"\u{1F1EC}\u{1F1E7}", lat:53.41, lon:-2.99,  tier:"academic",  domain:"materials",      maturity:"operational", charact:"partial",    ai:"strong",  scale:"single",        invest:0,   investLabel:"\u2014" },
+  { id:"amadap",    name:"AMADAP",                             org:"FAU Erlangen",                 city:"Erlangen",      country:"Germany",      flag:"\u{1F1E9}\u{1F1EA}", lat:49.60, lon:11.00,  tier:"academic",  domain:"materials",      maturity:"prototype",   charact:"xrd",        ai:"strong",  scale:"single",        invest:0,   investLabel:"\u2014" },
+  { id:"nims",      name:"NIMS Autonomous AI Network",         org:"NIMS + Tsukuba",               city:"Tsukuba",       country:"Japan",        flag:"\u{1F1EF}\u{1F1F5}", lat:36.08, lon:140.11, tier:"academic",  domain:"materials",      maturity:"prototype",   charact:"xrd",        ai:"strong",  scale:"multi-inst",    invest:0,   investLabel:"\u2014" },
+  { id:"dlab",      name:"dLab",                               org:"U Tokyo",                      city:"Tokyo",         country:"Japan",        flag:"\u{1F1EF}\u{1F1F5}", lat:35.71, lon:139.76, tier:"academic",  domain:"materials",      maturity:"prototype",   charact:"multimodal", ai:"strong",  scale:"single",        invest:0,   investLabel:"\u2014" },
+  { id:"kaist",     name:"KAIST-POSCO Autonomous Lab",         org:"KAIST + POSCO",                city:"Daejeon",       country:"Korea",        flag:"\u{1F1F0}\u{1F1F7}", lat:36.37, lon:127.36, tier:"academic",  domain:"batteries",      maturity:"operational", charact:"xrd",        ai:"strong",  scale:"industry-academia",invest:0,investLabel:"\u2014" },
+  { id:"kist",      name:"KIST MARK System",                   org:"KIST",                         city:"Seoul",         country:"Korea",        flag:"\u{1F1F0}\u{1F1F7}", lat:37.60, lon:127.05, tier:"academic",  domain:"chemistry",      maturity:"prototype",   charact:"integrated", ai:"strong",  scale:"single",        invest:0,   investLabel:"\u2014" },
+  { id:"snu",       name:"SNU SDL Ecosystem",                  org:"SNU / Jung Lab",               city:"Seoul",         country:"Korea",        flag:"\u{1F1F0}\u{1F1F7}", lat:37.46, lon:126.95, tier:"academic",  domain:"cross-domain",   maturity:"operational", charact:"multimodal", ai:"strong",  scale:"multi-lab",     invest:0,   investLabel:"\u2014" },
+  { id:"ustc",      name:"ChemAgents",                         org:"USTC Hefei",                   city:"Hefei",         country:"China",        flag:"\u{1F1E8}\u{1F1F3}", lat:31.82, lon:117.23, tier:"academic",  domain:"materials",      maturity:"operational", charact:"partial",    ai:"strong",  scale:"single",        invest:0,   investLabel:"\u2014" },
+  { id:"noel",      name:"No\u00EBl Group",                    org:"U Amsterdam",                  city:"Amsterdam",     country:"Netherlands",  flag:"\u{1F1F3}\u{1F1F1}", lat:52.36, lon:4.88,   tier:"academic",  domain:"chemistry",      maturity:"operational", charact:"integrated", ai:"strong",  scale:"single",        invest:0,   investLabel:"\u2014" },
 
   // Commercial / Industrial
-  { id:"lila",      name:"Lila Sciences",                      org:"Lila.ai",                      city:"Cambridge MA",  country:"USA",          flag:"\u{1F1FA}\u{1F1F8}", lat:42.37, lon:-71.11, tier:"commercial",domain:"drug-discovery", maturity:"operational", charact:"multi-technique", ai:"strong",  scale:"22,000 m\u00B2",invest:550, investLabel:"$550M" },
-  { id:"periodic",  name:"Periodic Labs",                      org:"Periodic Labs",                city:"San Francisco", country:"USA",          flag:"\u{1F1FA}\u{1F1F8}", lat:37.78, lon:-122.42,tier:"commercial",domain:"materials",      maturity:"prototype",   charact:"synthesis-only", ai:"strong",  scale:"commercial",    invest:0,   investLabel:"Undisclosed VC" },
-  { id:"xtalpi",    name:"XtalPi \u6676\u6CF0\u79D1\u6280",   org:"XtalPi (HKEX)",                city:"Shenzhen",      country:"China",        flag:"\u{1F1E8}\u{1F1F3}", lat:22.54, lon:114.06, tier:"commercial",domain:"drug-discovery", maturity:"industrial",  charact:"multi-technique", ai:"strong",  scale:"10,000+ m\u00B2 \u00B7 300 bots",invest:6000,investLabel:"HK$47B pipeline" },
-  { id:"labgen",    name:"LabGenius",                          org:"LabGenius",                    city:"London",        country:"UK",           flag:"\u{1F1EC}\u{1F1E7}", lat:51.49, lon:-0.08,  tier:"commercial",domain:"biology",        maturity:"operational", charact:"single-technique", ai:"strong",  scale:"commercial",    invest:0,   investLabel:"Undisclosed VC" },
-  { id:"deepp",     name:"Deep Principle \u6DF1\u5EA6\u539F\u7406",org:"Deep Principle",           city:"Hangzhou",      country:"China",        flag:"\u{1F1E8}\u{1F1F3}", lat:30.27, lon:120.15, tier:"commercial",domain:"drug-discovery", maturity:"operational", charact:"synthesis-only", ai:"strong",  scale:"commercial",    invest:0,   investLabel:"A2 round" },
-  { id:"qingkui",   name:"Qingkui \u9752\u8475\u667A\u9020",  org:"Qingkui",                      city:"Yichang",       country:"China",        flag:"\u{1F1E8}\u{1F1F3}", lat:30.69, lon:111.29, tier:"commercial",domain:"chemistry",      maturity:"industrial",  charact:"multi-technique", ai:"strong",  scale:"500+ cond/run", invest:0,   investLabel:"Municipal+VC" },
-  { id:"yong",      name:"Yongjiang Lab \u752C\u6C5F\u5B9E\u9A8C\u5BA4",org:"Provincial (Ningbo)",city:"Ningbo",        country:"China",        flag:"\u{1F1E8}\u{1F1F3}", lat:29.87, lon:121.54, tier:"commercial",domain:"chemistry",      maturity:"operational", charact:"multi-technique", ai:"strong",  scale:"provincial",    invest:0,   investLabel:"Government" },
-  { id:"dpt",       name:"DP Technology / Bohrium \u6DF1\u52BF\u79D1\u6280",org:"DP Technology",   city:"Beijing",       country:"China",        flag:"\u{1F1E8}\u{1F1F3}", lat:39.90, lon:116.40, tier:"commercial",domain:"materials",      maturity:"operational", charact:"multi-technique", ai:"strong",  scale:"1800+ instruments",invest:0,investLabel:"VC" },
-  { id:"jiageng",   name:"Jiageng Innovation Lab \u5609\u5E9A\u521B\u65B0\u5B9E\u9A8C\u5BA4",org:"Xiamen University / Fujian Province",city:"Xiamen",country:"China",flag:"\u{1F1E8}\u{1F1F3}", lat:24.44, lon:118.10, tier:"academic",  domain:"materials",      maturity:"operational", charact:"multi-technique", ai:"strong",  scale:"45,000+ m\u00B2",invest:0, investLabel:"Provincial" },
-  { id:"shailab",   name:"Shanghai AI Laboratory",              org:"National AI Lab",              city:"Shanghai",      country:"China",        flag:"\u{1F1E8}\u{1F1F3}", lat:31.23, lon:121.47, tier:"academic",  domain:"cross-domain",   maturity:"operational", charact:"synthesis-only", ai:"strong",  scale:"national",      invest:0,   investLabel:"Government" },
-  { id:"bytedance", name:"ByteDance Seed AI4S",                 org:"ByteDance",                    city:"Beijing",       country:"China",        flag:"\u{1F1E8}\u{1F1F3}", lat:39.99, lon:116.31, tier:"commercial",domain:"drug-discovery", maturity:"operational", charact:"synthesis-only", ai:"strong",  scale:"$12B+ AI infra",invest:0,  investLabel:"Corporate" },
-  { id:"robotchem", name:"Robot Chemist \u673A\u5668\u5316\u5B66\u5BB6",org:"USTC (Jun Jiang)", city:"Hefei",         country:"China",        flag:"\u{1F1E8}\u{1F1F3}", lat:31.84, lon:117.26, tier:"academic",  domain:"chemistry",      maturity:"operational", charact:"multi-technique", ai:"strong",  scale:"multi-robot",   invest:0,   investLabel:"\u2014" },
-  { id:"deeph",     name:"DeepH (Duan Group)",                  org:"Tsinghua University",          city:"Beijing",       country:"China",        flag:"\u{1F1E8}\u{1F1F3}", lat:40.00, lon:116.33, tier:"academic",  domain:"materials",      maturity:"operational", charact:"synthesis-only", ai:"strong",  scale:"single",        invest:0,   investLabel:"\u2014" },
-  { id:"surff",     name:"SurFF / Uni-MOF (Wang Group)",        org:"Tsinghua University",          city:"Beijing",       country:"China",        flag:"\u{1F1E8}\u{1F1F3}", lat:39.98, lon:116.31, tier:"academic",  domain:"materials",      maturity:"operational", charact:"synthesis-only", ai:"strong",  scale:"single",        invest:0,   investLabel:"\u2014" },
-  { id:"novartis",  name:"Novartis MicroCycle",                org:"Novartis",                     city:"Basel",         country:"Switzerland",  flag:"\u{1F1E8}\u{1F1ED}", lat:47.56, lon:7.59,   tier:"commercial",domain:"drug-discovery", maturity:"operational", charact:"multi-technique", ai:"strong",  scale:"pharma-internal",invest:0,  investLabel:"Internal" },
-  { id:"chemspeed", name:"Chemspeed / SciY",                   org:"Bruker",                       city:"F\u00FCllinsdorf",country:"Switzerland", flag:"\u{1F1E8}\u{1F1ED}", lat:47.52, lon:7.69,   tier:"commercial",domain:"cross-domain",   maturity:"operational", charact:"multi-technique", ai:"strong",  scale:"vendor",        invest:0,   investLabel:"Public (BRKR)" },
-  { id:"fraun",     name:"Fraunhofer MAPs",                    org:"Fraunhofer ISC",               city:"W\u00FCrzburg", country:"Germany",      flag:"\u{1F1E9}\u{1F1EA}", lat:49.79, lon:9.93,   tier:"commercial",domain:"materials",      maturity:"operational", charact:"multi-technique", ai:"strong",  scale:"applied network",invest:0, investLabel:"\u20AC20M" },
-  { id:"ecl",       name:"Emerald Cloud Lab",                  org:"ECL",                          city:"South San Francisco",country:"USA",     flag:"\u{1F1FA}\u{1F1F8}", lat:37.65, lon:-122.41,tier:"commercial",domain:"cross-domain",   maturity:"operational", charact:"multi-technique", ai:"strong",  scale:"SaaS \u00B7 200+ inst",invest:0, investLabel:"Undisclosed VC" },
-  { id:"ginkgo",    name:"Ginkgo Bioworks",                    org:"Ginkgo",                       city:"Boston",        country:"USA",          flag:"\u{1F1FA}\u{1F1F8}", lat:42.36, lon:-71.06, tier:"commercial",domain:"biology",        maturity:"operational", charact:"synthesis-only", ai:"strong",  scale:"300K+ sqft",    invest:786, investLabel:"$786M raised" },
-  { id:"cmuai",     name:"CMU AI Science Foundry",             org:"Carnegie Mellon",              city:"Pittsburgh",    country:"USA",          flag:"\u{1F1FA}\u{1F1F8}", lat:40.44, lon:-79.95, tier:"commercial",domain:"cross-domain",   maturity:"operational", charact:"multi-technique", ai:"strong",  scale:"national-academic",invest:0,investLabel:"Federal+Univ" },
-  { id:"strateos",  name:"Strateos",                           org:"Strateos",                     city:"San Diego",     country:"USA",          flag:"\u{1F1FA}\u{1F1F8}", lat:32.71, lon:-117.16,tier:"commercial",domain:"drug-discovery", maturity:"operational", charact:"single-technique", ai:"strong",  scale:"SaaS \u00B7 downsized",invest:0,investLabel:"VC" },
-  { id:"kebotix",   name:"Kebotix",                            org:"Kebotix",                      city:"Cambridge MA",  country:"USA",          flag:"\u{1F1FA}\u{1F1F8}", lat:42.37, lon:-71.10, tier:"commercial",domain:"materials",      maturity:"operational", charact:"synthesis-only", ai:"strong",  scale:"commercial",    invest:24,  investLabel:"$23.7M Series B" },
-  { id:"arctoris",  name:"Arctoris",                           org:"Arctoris",                     city:"Oxford",        country:"UK",           flag:"\u{1F1EC}\u{1F1E7}", lat:51.75, lon:-1.26,  tier:"commercial",domain:"drug-discovery", maturity:"operational", charact:"multi-technique", ai:"strong",  scale:"CRO",           invest:15,  investLabel:"~$15M" },
-  { id:"culture",   name:"Culture Biosciences",                org:"Culture Bio",                  city:"South San Francisco",country:"USA",     flag:"\u{1F1FA}\u{1F1F8}", lat:37.66, lon:-122.42,tier:"commercial",domain:"biology",        maturity:"operational", charact:"synthesis-only", ai:"strong",  scale:"hybrid cloud",  invest:107, investLabel:"$107M" },
+  { id:"lila",      name:"Lila Sciences",                      org:"Lila.ai",                      city:"Cambridge MA",  country:"USA",          flag:"\u{1F1FA}\u{1F1F8}", lat:42.37, lon:-71.11, tier:"commercial",domain:"drug-discovery", maturity:"operational", charact:"none",      ai:"strong",  scale:"22,000 m\u00B2",invest:550, investLabel:"$550M" },
+  { id:"periodic",  name:"Periodic Labs",                      org:"Periodic Labs",                city:"San Francisco", country:"USA",          flag:"\u{1F1FA}\u{1F1F8}", lat:37.78, lon:-122.42,tier:"commercial",domain:"materials",      maturity:"prototype",   charact:"none",      ai:"strong",  scale:"commercial",    invest:0,   investLabel:"Undisclosed VC" },
+  { id:"xtalpi",    name:"XtalPi \u664B\u6CF0\u79D1\u6280",   org:"XtalPi (HKEX)",                city:"Shenzhen",      country:"China",        flag:"\u{1F1E8}\u{1F1F3}", lat:22.54, lon:114.06, tier:"commercial",domain:"drug-discovery", maturity:"industrial",  charact:"integrated", ai:"strong",  scale:"10,000+ m\u00B2 \u00B7 300 bots",invest:6000,investLabel:"HK$47B pipeline" },
+  { id:"labgen",    name:"LabGenius",                          org:"LabGenius",                    city:"London",        country:"UK",           flag:"\u{1F1EC}\u{1F1E7}", lat:51.49, lon:-0.08,  tier:"commercial",domain:"biology",        maturity:"operational", charact:"integrated", ai:"strong",  scale:"commercial",    invest:0,   investLabel:"Undisclosed VC" },
+  { id:"deepp",     name:"Deep Principle \u6DF1\u5EA6\u539F\u7406",org:"Deep Principle",           city:"Hangzhou",      country:"China",        flag:"\u{1F1E8}\u{1F1F3}", lat:30.27, lon:120.15, tier:"commercial",domain:"drug-discovery", maturity:"operational", charact:"none",      ai:"strong",  scale:"commercial",    invest:0,   investLabel:"A2 round" },
+  { id:"qingkui",   name:"Qingkui \u9752\u8475\u667A\u9020",  org:"Qingkui",                      city:"Yichang",       country:"China",        flag:"\u{1F1E8}\u{1F1F3}", lat:30.69, lon:111.29, tier:"commercial",domain:"chemistry",      maturity:"industrial",  charact:"integrated", ai:"strong",  scale:"500+ cond/run", invest:0,   investLabel:"Municipal+VC" },
+  { id:"yong",      name:"Yongjiang Lab \u752C\u6C5F\u5B9E\u9A8C\u5BA4",org:"Provincial (Ningbo)",city:"Ningbo",        country:"China",        flag:"\u{1F1E8}\u{1F1F3}", lat:29.87, lon:121.54, tier:"commercial",domain:"chemistry",      maturity:"operational", charact:"integrated", ai:"strong",  scale:"provincial",    invest:0,   investLabel:"Government" },
+  { id:"dpt",       name:"DP Technology / Bohrium \u6DF1\u52BF\u79D1\u6280",org:"DP Technology",   city:"Beijing",       country:"China",        flag:"\u{1F1E8}\u{1F1F3}", lat:39.90, lon:116.40, tier:"commercial",domain:"materials",      maturity:"operational", charact:"multimodal", ai:"strong",  scale:"1800+ instruments",invest:0,investLabel:"VC" },
+  { id:"novartis",  name:"Novartis MicroCycle",                org:"Novartis",                     city:"Basel",         country:"Switzerland",  flag:"\u{1F1E8}\u{1F1ED}", lat:47.56, lon:7.59,   tier:"commercial",domain:"drug-discovery", maturity:"operational", charact:"integrated", ai:"strong",  scale:"pharma-internal",invest:0,  investLabel:"Internal" },
+  { id:"chemspeed", name:"Chemspeed / SciY",                   org:"Bruker",                       city:"F\u00FCllinsdorf",country:"Switzerland", flag:"\u{1F1E8}\u{1F1ED}", lat:47.52, lon:7.69,   tier:"commercial",domain:"cross-domain",   maturity:"operational", charact:"multimodal", ai:"strong",  scale:"vendor",        invest:0,   investLabel:"Public (BRKR)" },
+  { id:"fraun",     name:"Fraunhofer MAPs",                    org:"Fraunhofer ISC",               city:"W\u00FCrzburg", country:"Germany",      flag:"\u{1F1E9}\u{1F1EA}", lat:49.79, lon:9.93,   tier:"commercial",domain:"materials",      maturity:"operational", charact:"integrated", ai:"strong",  scale:"applied network",invest:0, investLabel:"\u20AC20M" },
+  { id:"ecl",       name:"Emerald Cloud Lab",                  org:"ECL",                          city:"South San Francisco",country:"USA",     flag:"\u{1F1FA}\u{1F1F8}", lat:37.65, lon:-122.41,tier:"commercial",domain:"cross-domain",   maturity:"operational", charact:"multimodal", ai:"strong",  scale:"SaaS \u00B7 200+ inst",invest:0, investLabel:"Undisclosed VC" },
+  { id:"ginkgo",    name:"Ginkgo Bioworks",                    org:"Ginkgo",                       city:"Boston",        country:"USA",          flag:"\u{1F1FA}\u{1F1F8}", lat:42.36, lon:-71.06, tier:"commercial",domain:"biology",        maturity:"operational", charact:"none",      ai:"strong",  scale:"300K+ sqft",    invest:786, investLabel:"$786M raised" },
+  { id:"cmuai",     name:"CMU AI Science Foundry",             org:"Carnegie Mellon",              city:"Pittsburgh",    country:"USA",          flag:"\u{1F1FA}\u{1F1F8}", lat:40.44, lon:-79.95, tier:"commercial",domain:"cross-domain",   maturity:"operational", charact:"multimodal", ai:"strong",  scale:"national-academic",invest:0,investLabel:"Federal+Univ" },
+  { id:"strateos",  name:"Strateos",                           org:"Strateos",                     city:"San Diego",     country:"USA",          flag:"\u{1F1FA}\u{1F1F8}", lat:32.71, lon:-117.16,tier:"commercial",domain:"drug-discovery", maturity:"operational", charact:"partial",    ai:"strong",  scale:"SaaS \u00B7 downsized",invest:0,investLabel:"VC" },
+  { id:"kebotix",   name:"Kebotix",                            org:"Kebotix",                      city:"Cambridge MA",  country:"USA",          flag:"\u{1F1FA}\u{1F1F8}", lat:42.37, lon:-71.10, tier:"commercial",domain:"materials",      maturity:"operational", charact:"none",      ai:"strong",  scale:"commercial",    invest:24,  investLabel:"$23.7M Series B" },
+  { id:"arctoris",  name:"Arctoris",                           org:"Arctoris",                     city:"Oxford",        country:"UK",           flag:"\u{1F1EC}\u{1F1E7}", lat:51.75, lon:-1.26,  tier:"commercial",domain:"drug-discovery", maturity:"operational", charact:"integrated", ai:"strong",  scale:"CRO",           invest:15,  investLabel:"~$15M" },
+  { id:"culture",   name:"Culture Biosciences",                org:"Culture Bio",                  city:"South San Francisco",country:"USA",     flag:"\u{1F1FA}\u{1F1F8}", lat:37.66, lon:-122.42,tier:"commercial",domain:"biology",        maturity:"operational", charact:"none",      ai:"strong",  scale:"hybrid cloud",  invest:107, investLabel:"$107M" },
 
   // Lab OS / Orchestration
   { id:"automata",  name:"Automata (LINQ)",                    org:"Automata",                     city:"London",        country:"UK",           flag:"\u{1F1EC}\u{1F1E7}", lat:51.52, lon:-0.10,  tier:"labos",     domain:"orchestration",  maturity:"operational", charact:"\u2014",    ai:"strong",  scale:"platform",      invest:45,  investLabel:"$45M Series C" },
@@ -411,6 +363,19 @@ window.SDL_DATA = [
   { id:"highres",   name:"HighRes + Opentrons",                org:"HighRes Biosolutions \u00D7 Opentrons",city:"Beverly",country:"USA",        flag:"\u{1F1FA}\u{1F1F8}", lat:42.56, lon:-70.88, tier:"labos",     domain:"orchestration",  maturity:"prototype",   charact:"\u2014",    ai:"strong",  scale:"platform",      invest:0,   investLabel:"Partnership" },
   { id:"atinary",   name:"Atinary",                            org:"Atinary",                      city:"Lausanne",      country:"Switzerland",  flag:"\u{1F1E8}\u{1F1ED}", lat:46.52, lon:6.63,   tier:"labos",     domain:"orchestration",  maturity:"operational", charact:"\u2014",    ai:"strong",  scale:"Lab OS",        invest:0,   investLabel:"Undisclosed" },
   { id:"abb",       name:"ABB Robotics",                       org:"ABB",                          city:"Z\u00FCrich",   country:"Switzerland",  flag:"\u{1F1E8}\u{1F1ED}", lat:47.37, lon:8.54,   tier:"labos",     domain:"orchestration",  maturity:"operational", charact:"\u2014",    ai:"strong",  scale:"industrial",    invest:0,   investLabel:"Public" },
+  // === Synthesis SDL Groups (added 2026-04-21) ===
+  { id:"jensen",    name:"Jensen Lab",                         org:"MIT",                          city:"Cambridge MA",  country:"USA",          flag:"\u{1F1FA}\u{1F1F8}", lat:42.36, lon:-71.09, tier:"academic",  domain:"chemistry",      maturity:"operational", charact:"integrated", ai:"strong",  scale:"single",        invest:0,   investLabel:"Science 2023: 312 molecules" },
+  { id:"cronin",    name:"Cronin Group / Chemify",             org:"U Glasgow",                    city:"Glasgow",       country:"UK",           flag:"\u{1F1EC}\u{1F1E7}", lat:55.87, lon:-4.29,  tier:"academic",  domain:"chemistry",      maturity:"operational", charact:"limited",    ai:"strong",  scale:"single + Chemifarm", invest:0, investLabel:"Chemify (startup)" },
+  { id:"grzybowski",name:"Grzybowski Group / IBS-CARS",        org:"UNIST + Polish Acad. Sci.",    city:"Ulsan",         country:"Korea",        flag:"\u{1F1F0}\u{1F1F7}", lat:35.54, lon:129.26, tier:"academic",  domain:"chemistry",      maturity:"operational", charact:"none",       ai:"strong",  scale:"IBS center",    invest:0,   investLabel:"Chematica/Synthia" },
+  { id:"burke",     name:"MMLI / Burke Group",                 org:"UIUC",                         city:"Champaign",     country:"USA",          flag:"\u{1F1FA}\u{1F1F8}", lat:40.11, lon:-88.23, tier:"academic",  domain:"chemistry",      maturity:"operational", charact:"partial",    ai:"strong",  scale:"NSF AI Institute", invest:20, investLabel:"$20M+ (NSF)" },
+  { id:"hein",      name:"Hein Lab / Telescope",               org:"UBC",                          city:"Vancouver",     country:"Canada",       flag:"\u{1F1E8}\u{1F1E6}", lat:49.26, lon:-123.25,tier:"academic",  domain:"chemistry",      maturity:"operational", charact:"integrated", ai:"strong",  scale:"single + vendor", invest:0,  investLabel:"Telescope Innovations" },
+  { id:"ley",       name:"Ley Group",                          org:"U Cambridge",                  city:"Cambridge",     country:"UK",           flag:"\u{1F1EC}\u{1F1E7}", lat:52.21, lon:0.12,   tier:"academic",  domain:"chemistry",      maturity:"operational", charact:"integrated", ai:"none",    scale:"single",        invest:0,   investLabel:"Flow + PAT pioneer" },
+  { id:"doyle",     name:"Doyle Group",                        org:"UCLA",                         city:"Los Angeles",   country:"USA",          flag:"\u{1F1FA}\u{1F1F8}", lat:34.07, lon:-118.44,tier:"academic",  domain:"chemistry",      maturity:"operational", charact:"partial",    ai:"strong",  scale:"single + Merck", invest:0,  investLabel:"HTE + ML" },
+  // === SDL Hardware Vendors (added 2026-04-21) ===
+  { id:"hamilton",  name:"Hamilton Company",                   org:"Hamilton",                     city:"Reno",          country:"USA",          flag:"\u{1F1FA}\u{1F1F8}", lat:39.53, lon:-119.81,tier:"commercial",domain:"cross-domain",   maturity:"operational", charact:"\u2014",    ai:"none",    scale:"vendor (~$815M rev)", invest:0, investLabel:"Private" },
+  { id:"opentrons", name:"Opentrons",                          org:"Opentrons Labworks",           city:"Brooklyn",      country:"USA",          flag:"\u{1F1FA}\u{1F1F8}", lat:40.69, lon:-73.99, tier:"commercial",domain:"cross-domain",   maturity:"operational", charact:"\u2014",    ai:"strong",  scale:"vendor ($1.8B val)", invest:261, investLabel:"$261M raised" },
+  { id:"tecan",     name:"Tecan Group",                        org:"Tecan (SIX: TECN)",            city:"M\u00E4nnedorf",country:"Switzerland",  flag:"\u{1F1E8}\u{1F1ED}", lat:47.25, lon:8.72,   tier:"commercial",domain:"cross-domain",   maturity:"operational", charact:"\u2014",    ai:"partial", scale:"vendor (CHF 934M rev)", invest:0, investLabel:"Public (SIX)" },
+  { id:"paa",       name:"Peak Analysis & Automation",         org:"PAA (Grenova)",                city:"Farnborough",   country:"UK",           flag:"\u{1F1EC}\u{1F1E7}", lat:51.28, lon:-0.75,  tier:"commercial",domain:"cross-domain",   maturity:"operational", charact:"\u2014",    ai:"partial", scale:"vendor (~40 staff)", invest:0, investLabel:"Private" },
 ];
 
 window.SDL_CATEGORIES = {
@@ -446,12 +411,16 @@ window.SDL_CATEGORIES = {
     ]
   },
   charact: {
-    label: "Characterisation in Loop",
+    label: "Characterisation",
     options: [
-      { id:"synthesis-only",      label:"Synthesis only" },
-      { id:"single-technique",    label:"Single technique" },
-      { id:"multi-technique",     label:"Multi-technique" },
-      { id:"advanced-multimodal", label:"Advanced multimodal integrated" },
+      { id:"none",       label:"None / minimal" },
+      { id:"limited",    label:"Limited" },
+      { id:"partial",    label:"Partial" },
+      { id:"xrd",        label:"XRD / spectroscopy" },
+      { id:"integrated", label:"In-line / integrated" },
+      { id:"operando",   label:"Operando" },
+      { id:"multimodal", label:"Multimodal" },
+      { id:"pillar",     label:"Architectural pillar" },
     ]
   },
 };
@@ -529,24 +498,24 @@ window.SDL_CATEGORIES = {
         <button id="z-reset" title="Reset view">\u27F2</button>
       </div>
       <div class="zoom-hint" id="z-hint">Drag to pan \u00B7 scroll to zoom \u00B7 double-click to zoom in</div>
-      <div class="region-nav">
-        <button id="r-eu" title="Fly to Europe">EU</button>
-        <button id="r-us" title="Fly to United States">US</button>
-        <button id="r-ea" title="Fly to East Asia">EA</button>
-      </div>
       <div class="tip" id="tip"></div>
-      <div class="filter-callout" id="filter-callout"></div>
     </div>
 
     <aside class="right">
       <div class="section-h">Domain</div>
       <div class="chips" data-group="domain"></div>
-      <div class="section-h">Characterisation in Loop</div>
+      <div class="section-h">Characterisation depth</div>
       <div class="chips" data-group="charact"></div>
     </aside>
 
     <footer class="bot">
       <div>DiscoveryLabNL \u00B7 Landscape Matrix v.04.2026</div>
+      <div class="leg">
+        <div class="item">Marker size \u2192</div>
+        <div class="item"><svg width="14" height="14"><circle class="circ" cx="7" cy="7" r="3" fill="none"/></svg><span>Small initiative</span></div>
+        <div class="item"><svg width="18" height="18"><circle class="circ" cx="9" cy="9" r="6" fill="none"/></svg><span>$100M+</span></div>
+        <div class="item"><svg width="22" height="22"><circle class="circ" cx="11" cy="11" r="9" fill="none"/></svg><span>$500M+</span></div>
+      </div>
     </footer>
   `;
 
@@ -587,7 +556,7 @@ window.SDL_CATEGORIES = {
     .scale(BASE_SCALE)
     .translate([CX, CY])
     .clipAngle(90)
-    .rotate([-5, -50]);
+    .rotate([0, -15]);
   const path = d3.geoPath(projection);
 
   const ns = 'http://www.w3.org/2000/svg';
@@ -880,7 +849,6 @@ window.SDL_CATEGORIES = {
     });
 
     const active = anyFilterActive();
-    svg.classList.toggle('filtering', active);
     let shown = 0;
     const countryset = new Set();
     DATA.forEach(d => {
@@ -889,11 +857,6 @@ window.SDL_CATEGORIES = {
       if(!active || match) countryset.add(d.country);
       d._el.classList.toggle('dim', active && !match);
       d._el.classList.toggle('hl',  active && match);
-      // Scale up highlighted marker circles (no CSS transform to avoid drift)
-      const baseR = investRadius(d.invest);
-      const hl = active && match;
-      d._el.querySelector('.core').setAttribute('r', hl ? baseR * 1.5 : baseR);
-      d._el.querySelector('.ring').setAttribute('r', hl ? (baseR + 2.5) * 1.5 : baseR + 2.5);
     });
 
     document.getElementById('count-total').textContent = DATA.length;
@@ -901,37 +864,12 @@ window.SDL_CATEGORIES = {
     document.getElementById('count-countries').textContent = countryset.size;
 
     renderList();
-    redraw();          // refresh inline opacity so dim/hl takes effect immediately
-
-    // Contextual callout for specific filters
-    const callout = document.getElementById('filter-callout');
-    const CALLOUTS = {
-      'synthesis-only': 'AI designs, robots synthesise \u2014 but <strong>no measurement closes the loop</strong>. Discovery relies on computation alone.',
-      'single-technique': 'One analytical method in the loop \u2014 typically <strong>XRD, UV-Vis, or NMR</strong>. Enough to verify, not enough to understand.',
-      'multi-technique': 'Multiple benchtop instruments (HPLC, MS, Raman, DLS) \u2014 <strong>breadth without depth</strong>. No large-facility or advanced imaging.',
-      'advanced-multimodal': 'Synchrotron X-ray only. <strong>No SDL integrates electron microscopy, mechanical testing, or custom hardware</strong> \u2014 the DiscoveryLabNL gap.',
-    };
-    let calloutHTML = '';
-    for (const [key, msg] of Object.entries(CALLOUTS)) {
-      if (state.filters.charact.has(key)) { calloutHTML = msg; break; }
-    }
-    if (calloutHTML) {
-      callout.innerHTML = calloutHTML;
-      callout.classList.add('visible');
-      // Position within the visible portion of the map
-      const wrapRect = svg.parentElement.getBoundingClientRect();
-      const viewportBottom = window.innerHeight;
-      const visibleBottom = Math.min(wrapRect.bottom, viewportBottom) - wrapRect.top;
-      callout.style.top = Math.max(200, visibleBottom - 60) + 'px';
-    } else {
-      callout.classList.remove('visible');
-    }
   }
 
   // Globe rotate + zoom
   const view = {
-    scale: BASE_SCALE * 5.5,
-    rotate: [-5, -50, 0],
+    scale: BASE_SCALE,
+    rotate: [0, -15, 0],
     min: BASE_SCALE,
     max: BASE_SCALE * 12,
   };
@@ -980,9 +918,7 @@ window.SDL_CATEGORIES = {
         d._el.style.display = '';
         d._el.setAttribute('transform', 'translate('+x+','+y+')');
         const limbFade = Math.min(1, Math.max(0, (88 - dist)/20));
-        // Respect dim/hl class — dim markers get much lower opacity
-        const isDim = d._el.classList.contains('dim');
-        d._el.style.opacity = isDim ? limbFade * 0.08 : limbFade;
+        d._el.style.opacity = limbFade;
         d._x = x; d._y = y;
         d._el.querySelector('.m-inner').removeAttribute('transform');
       } else {
@@ -1078,78 +1014,22 @@ window.SDL_CATEGORIES = {
     zHint.classList.add('fade');
   });
 
-  // Animated flyTo — zoom-out arc then zoom-in to destination
-  const REGIONS = {
-    eu: { rotate: [-5, -50, 0], scale: BASE_SCALE * 5.5 },
-    us: { rotate: [95, -40, 0],  scale: BASE_SCALE * 4.0 },
-    ea: { rotate: [-120, -35, 0], scale: BASE_SCALE * 4.0 },
-  };
-
-  let flyAnim = null;
-  function flyTo(region) {
-    const target = REGIONS[region];
-    if (!target) return;
-    if (flyAnim) cancelAnimationFrame(flyAnim);
-
-    const start = { rotate: [...view.rotate], scale: view.scale };
-    const t0 = performance.now();
-
-    // Compute angular distance to decide if we need the zoom-out arc
-    const dLon = Math.abs(target.rotate[0] - start.rotate[0]);
-    const dLat = Math.abs(target.rotate[1] - start.rotate[1]);
-    const angularDist = Math.sqrt(dLon * dLon + dLat * dLat);
-    const needsArc = angularDist > 20; // significant rotation → zoom out first
-
-    // Zoom-out trough: pull back to global view mid-flight
-    const midScale = needsArc ? BASE_SCALE * 1.0 : (start.scale + target.scale) / 2;
-    const duration = needsArc ? 1400 : 800; // longer for cross-globe flights
-
-    // Highlight active button
-    document.querySelectorAll('.region-nav button').forEach(b => b.classList.remove('active-region'));
-    const btn = document.getElementById('r-' + region);
-    if (btn) btn.classList.add('active-region');
-    zHint.classList.add('fade');
-
-    function step(now) {
-      const t = Math.min(1, (now - t0) / duration);
-      // Ease in-out cubic for rotation
-      const e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-
-      // Rotation: smooth interpolation
-      view.rotate[0] = start.rotate[0] + (target.rotate[0] - start.rotate[0]) * e;
-      view.rotate[1] = start.rotate[1] + (target.rotate[1] - start.rotate[1]) * e;
-      view.rotate[2] = start.rotate[2] + ((target.rotate[2] || 0) - start.rotate[2]) * e;
-
-      // Scale: parabolic arc — dip to midScale at t=0.5, arrive at target.scale at t=1
-      // s(t) = (1-t)^2 * start + 2*(1-t)*t * mid + t^2 * target  (quadratic Bezier)
-      const s0 = start.scale, s1 = midScale, s2 = target.scale;
-      const oneMinusT = 1 - t;
-      view.scale = oneMinusT * oneMinusT * s0 + 2 * oneMinusT * t * s1 + t * t * s2;
-
-      redraw();
-
-      if (t < 1) flyAnim = requestAnimationFrame(step);
-      else flyAnim = null;
-    }
-    flyAnim = requestAnimationFrame(step);
-  }
-
-  // Region buttons
-  document.getElementById('r-eu').onclick = () => flyTo('eu');
-  document.getElementById('r-us').onclick = () => flyTo('us');
-  document.getElementById('r-ea').onclick = () => flyTo('ea');
-
   // Buttons
   document.getElementById('z-in').onclick  = () => { zoomBy(1.6); zHint.classList.add('fade'); };
   document.getElementById('z-out').onclick = () => { zoomBy(1/1.6); };
-  document.getElementById('z-reset').onclick = () => { flyTo('eu'); };
+  document.getElementById('z-reset').onclick = () => {
+    view.scale = BASE_SCALE;
+    view.rotate = [0, -15, 0];
+    redraw();
+    zHint.classList.remove('fade');
+  };
 
   // Keyboard
   window.addEventListener('keydown', (e) => {
     if(e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
     if(e.key === '+' || e.key === '=') zoomBy(1.4);
     else if(e.key === '-' || e.key === '_') zoomBy(1/1.4);
-    else if(e.key === '0'){ flyTo('eu'); }
+    else if(e.key === '0'){ view.scale = BASE_SCALE; view.rotate=[0,-15,0]; redraw(); }
     else if(e.key === 'ArrowLeft')  { view.rotate[0] -= 10; redraw(); }
     else if(e.key === 'ArrowRight') { view.rotate[0] += 10; redraw(); }
     else if(e.key === 'ArrowUp')    { view.rotate[1] = Math.min(89, view.rotate[1] + 10); redraw(); }
