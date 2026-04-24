@@ -1050,6 +1050,167 @@ h2 {
 }
 
 .stat-line span { color: var(--accent); }
+
+/* ============================
+   Mobile responsive
+   ============================ */
+@media (max-width: 768px) {
+  .slide {
+    padding: 60px 24px 40px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .slide.active {
+    overflow-y: auto;
+  }
+
+  .top-bar {
+    padding: 0.5rem 1rem;
+    gap: 0.7rem;
+  }
+  .top-bar img { height: 22px; }
+  .top-bar-title { font-size: 1.1rem; }
+  .top-bar-tagline { font-size: 0.55rem; }
+
+  h1 { font-size: clamp(32px, 8vw, 48px); }
+  h2 { font-size: clamp(22px, 5vw, 32px); }
+  .subtitle { font-size: clamp(15px, 4vw, 20px); }
+  .large-text { font-size: clamp(16px, 4vw, 22px); }
+  .callout { font-size: 14px; padding: 16px 18px; margin-top: 20px; }
+
+  /* Title slide */
+  .title-slide { padding-left: 24px; padding-bottom: 60px; }
+  .title-slide h1 { font-size: clamp(36px, 9vw, 56px); letter-spacing: -1px; }
+  .title-meta { font-size: 12px; margin-top: 20px; letter-spacing: 1px; }
+  .title-footer { left: 24px; bottom: 24px; }
+  .title-org { font-size: 11px; }
+  .landing-ring-container {
+    width: 280px; height: 280px;
+    top: 30%;
+  }
+
+  /* Pillar cards — stack */
+  .pillars-row {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .pillar-card { padding: 14px 16px; }
+  .pillar-card h3 { font-size: 14px; }
+  .pillar-card p { font-size: 13px; }
+
+  /* Loop container */
+  .loop-container svg { height: 200px; }
+  .loop-container .loop-caption { font-size: 9px; }
+
+  /* Domain cards — stack */
+  .domains-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .domains-intro { font-size: 14px; margin-bottom: 12px; }
+  .domain-body h3 { font-size: 13px; }
+  .domain-body p { font-size: 12px; }
+  .domain-icon { width: 24px; height: 24px; }
+
+  /* Global Race slide */
+  [data-index="4"] { padding: 60px 20px 40px; }
+  .stat-line { font-size: 14px; }
+  .map-caption { font-size: 12px; }
+
+  /* Gap slide — stack */
+  .gap-columns {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  .big-stat { align-items: flex-start; }
+  .big-stat .number { font-size: clamp(72px, 20vw, 120px); }
+  .big-stat .caption { font-size: 13px; text-align: left; }
+  .comparison-card h4 { font-size: 13px; }
+  .comparison-card p { font-size: 12px; }
+  .pull-quote { font-size: 13px; margin-top: 16px; }
+
+  /* Profile cards — stack */
+  .profile-row {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    margin-top: 16px;
+  }
+  .profile-card { padding: 18px 16px; }
+  .profile-card h3 { font-size: 14px; margin-bottom: 10px; }
+  .profile-card li { font-size: 13px; margin-bottom: 6px; }
+  .bottom-centered { font-size: 12px; margin-top: 20px; }
+
+  /* Timeline — stack vertically */
+  .timeline {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 20px;
+    padding: 16px 0;
+  }
+  .timeline::before {
+    top: 0; bottom: 0;
+    left: 6px; right: auto;
+    width: 2px; height: 100%;
+  }
+  .timeline-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding-left: 0;
+  }
+  .timeline-dot { margin: 0; flex-shrink: 0; }
+  .timeline-label { font-size: 13px; }
+  .timeline-sub { font-size: 11px; margin-top: 2px; }
+  .timeline-sub br { display: none; }
+  .timeline-marker {
+    position: static;
+    transform: none;
+    display: block;
+    margin-top: 2px;
+  }
+
+  /* Assets — stack */
+  .assets-row {
+    grid-template-columns: 1fr;
+    gap: 24px;
+    margin-top: 24px;
+  }
+  .assets-col h4 { font-size: 12px; }
+  .assets-col li { font-size: 13px; }
+
+  /* Next steps */
+  .ask-list li { font-size: 14px; flex-direction: column; gap: 4px; }
+  .ask-name { text-align: left; min-width: auto; }
+  .milestone { font-size: 13px; margin-top: 24px; }
+  .site-link { font-size: 12px; bottom: 20px; }
+
+  /* Bottom note */
+  .bottom-note { left: 24px; bottom: 24px; font-size: 11px; }
+
+  /* Counter & hint */
+  .counter { bottom: 16px; right: 16px; font-size: 10px; }
+  .keyboard-hint { display: none; }
+
+  /* Slide header */
+  .slide-header { font-size: 12px; letter-spacing: 2px; margin-bottom: 14px; }
+
+  /* Overview — 2 columns on mobile */
+  body.overview .deck {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    padding: 16px;
+  }
+  body.overview .slide { zoom: 0.22; }
+}
+
+@media (max-width: 480px) {
+  .slide { padding: 56px 18px 32px; }
+  .title-slide { padding-left: 18px; }
+  .title-footer { left: 18px; }
+  .landing-ring-container { width: 220px; height: 220px; }
+  body.overview .deck { grid-template-columns: 1fr; }
+  body.overview .slide { zoom: 0.28; }
+}
 </style>
 </head>
 <body>
@@ -1507,6 +1668,30 @@ h2 {
       goTo(idx);
     }
   });
+
+  // Touch/swipe navigation
+  let touchStartX = 0;
+  let touchStartY = 0;
+  let touchStartTime = 0;
+
+  document.addEventListener('touchstart', function(e) {
+    if (document.body.classList.contains('overview')) return;
+    touchStartX = e.changedTouches[0].screenX;
+    touchStartY = e.changedTouches[0].screenY;
+    touchStartTime = Date.now();
+  }, { passive: true });
+
+  document.addEventListener('touchend', function(e) {
+    if (document.body.classList.contains('overview')) return;
+    const dx = e.changedTouches[0].screenX - touchStartX;
+    const dy = e.changedTouches[0].screenY - touchStartY;
+    const dt = Date.now() - touchStartTime;
+    // Only trigger on horizontal swipes (not vertical scrolling)
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5 && dt < 500) {
+      if (dx < 0) next();
+      else prev();
+    }
+  }, { passive: true });
 
   // Init
   goTo(0);
