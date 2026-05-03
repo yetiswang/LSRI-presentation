@@ -469,6 +469,19 @@ h2 {
   color: var(--muted);
 }
 
+.pillar-card p.operational-ref {
+  font-size: 12px;
+  margin-top: 10px;
+  color: var(--muted);
+  opacity: 0.85;
+}
+.pillar-card p.operational-ref a {
+  color: var(--accent2);
+  text-decoration: none;
+  font-weight: 600;
+}
+.pillar-card p.operational-ref a:hover { text-decoration: underline; }
+
 /* Loop SVG animation container */
 .loop-container {
   flex: 1;
@@ -1294,6 +1307,7 @@ h2 {
       <div class="pillar-card blue">
         <h3>Advanced Characterisation</h3>
         <p>Optical, electron, and X-ray microscopy combined with spectroscopy. The continuous verification and integration layer of the discovery loop.</p>
+        <p class="operational-ref">Operational reference: <a href="https://superresolution.nl/" target="_blank" rel="noopener">superresolution.nl</a> (AMF at ICMS).</p>
       </div>
       <div class="pillar-card">
         <h3>AI Core Facility</h3>
