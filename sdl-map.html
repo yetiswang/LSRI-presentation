@@ -709,7 +709,7 @@ footer .leg .circ{ border:1px solid var(--ink-3); border-radius:50%; }
   footer.bot { display: none; }
   /* But keep a build version readable in the title bar bottom corner */
   header.top::after {
-    content: 'mobile-v17-label-skip';
+    content: 'mobile-v18-labels-stay';
     position: absolute;
     bottom: 2px;
     right: 8px;
@@ -750,27 +750,20 @@ footer .leg .circ{ border:1px solid var(--ink-3); border-radius:50%; }
 .marker.dim .hit { pointer-events: none; }
 
 /* v9: hide expensive layers during interaction for smoother drag/pinch */
-body.interacting .country-label,
-body.interacting .province-label,
-body.interacting .marker-label,
+/* v18: only hide the genuinely heavy graticule + provinces during interaction
+   so the user doesn't see country-name pop-in/pop-out lag.
+   Labels stay visible during drag; their positions update every frame. */
 body.interacting .graticule,
-body.interacting .provinces,
-body.interacting .borders {
-  visibility: hidden;
+body.interacting .provinces {
   opacity: 0;
 }
-.country-label, .province-label, .marker-label, .graticule, .provinces, .borders {
-  transition: opacity 0.18s ease-out, visibility 0s linear 0s;
+body.interacting .marker-label {
+  visibility: hidden;
 }
-body.interacting .country-label,
-body.interacting .province-label,
-body.interacting .marker-label,
-body.interacting .graticule,
-body.interacting .provinces,
-body.interacting .borders {
-  transition: opacity 0s linear, visibility 0s linear 0s;
+.graticule, .provinces {
+  transition: opacity 0.18s ease-out;
 }
-body.interacting .land { opacity: 0.85; }
+body.interacting .land { opacity: 0.92; }
 /* GPU compositing hint */
 .map-wrap, #map { will-change: transform; }
 
@@ -1531,7 +1524,13 @@ function redraw(){
     atmos.setAttribute('filter', 'url(#atmosphere)');
     sphereLine.setAttribute('d', path({type:'Sphere'}));
 
-    gratPath.setAttribute('d', path(gratGen()));
+    // v18: simpler graticule when actively dragging (coarse step)
+    if (document.body.classList.contains('interacting')) {
+      if (!window._coarseGrat) window._coarseGrat = d3.geoGraticule().step([45, 45]);
+      gratPath.setAttribute('d', path(window._coarseGrat()));
+    } else {
+      gratPath.setAttribute('d', path(gratGen()));
+    }
     landPath.setAttribute('d', path(landFeat));
     bordersPath.setAttribute('d', path(countriesMesh));
     outerPath.setAttribute('d', path(countriesOuter));
@@ -1562,12 +1561,10 @@ function redraw(){
       }
     });
 
-    // v17 perf: skip ALL label-position work during drag/pinch/inertia.
-    // The CSS already hides labels via `body.interacting { visibility:hidden }`,
-    // so the user can't see them — but the loop below was still running ~100+
-    // gcDist + projection + 3 attribute writes per frame, which was the
-    // measurable lag the user reported.
-    if (!document.body.classList.contains('interacting')) {
+    // v18: labels stay visible during interaction (the disappear IS the lag).
+    // Their per-frame update is cheap on modern hardware; keep them flowing
+    // with the globe rotation instead of popping in/out.
+    {
       // Cache the selector once: countryLabels + provinceLabels arrays already
       // hold the elements. We only need to hide elements that weren't matched.
       countryLabels.forEach(l => {
