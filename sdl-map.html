@@ -709,7 +709,7 @@ footer .leg .circ{ border:1px solid var(--ink-3); border-radius:50%; }
   footer.bot { display: none; }
   /* But keep a build version readable in the title bar bottom corner */
   header.top::after {
-    content: 'mobile-v9-smooth';
+    content: 'mobile-v10-inertia';
     position: absolute;
     bottom: 2px;
     right: 8px;
@@ -1501,6 +1501,70 @@ function redraw(){
     redraw();
   }
 
+  // === Inertia (mobile v10) ===
+  // Tracks the last few pointer-move deltas with timestamps; on release,
+  // if velocity is meaningful, the globe keeps rotating with friction decay
+  // for a natural iOS flick feel. Re-touching cancels inertia.
+  let velSamples = [];       // [{t, dx, dy}]
+  let inertiaRafId = null;
+  let inertiaVel = null;     // {vx, vy}  deg per frame
+  const INERTIA_FRICTION = 0.94;
+  const INERTIA_MIN = 0.02;          // stop when speed drops below this
+  const INERTIA_SAMPLE_WINDOW_MS = 80;
+
+  function recordSample(dx, dy){
+    const t = performance.now();
+    velSamples.push({t, dx, dy});
+    // Keep only the most recent 80ms of samples
+    while (velSamples.length && t - velSamples[0].t > INERTIA_SAMPLE_WINDOW_MS) {
+      velSamples.shift();
+    }
+  }
+  function computeReleaseVelocity(){
+    if (velSamples.length < 2) return null;
+    const first = velSamples[0];
+    const last = velSamples[velSamples.length - 1];
+    const dt = last.t - first.t;
+    if (dt <= 0) return null;
+    // Sum deltas and convert px/ms → deg/frame at ~60fps (16.67ms)
+    let sumDx = 0, sumDy = 0;
+    for (const s of velSamples) { sumDx += s.dx; sumDy += s.dy; }
+    const k = view.scale / BASE_SCALE;
+    const sens = 0.25 / k;
+    // sumDx/sumDy are already in projection coords (1000×560); convert to deg/frame
+    const vx = (sumDx / dt) * 16.67 * sens;
+    const vy = (sumDy / dt) * 16.67 * sens;
+    return {vx, vy};
+  }
+  function cancelInertia(){
+    if (inertiaRafId !== null) cancelAnimationFrame(inertiaRafId);
+    inertiaRafId = null;
+    inertiaVel = null;
+  }
+  function startInertia(vx, vy){
+    cancelInertia();
+    const speed = Math.hypot(vx, vy);
+    if (speed < INERTIA_MIN * 4) return;   // not fast enough to bother
+    inertiaVel = {vx, vy};
+    document.body.classList.add('interacting');
+    const step = () => {
+      if (!inertiaVel) return;
+      view.rotate[0] += inertiaVel.vx;
+      view.rotate[1] = Math.max(-89, Math.min(89, view.rotate[1] - inertiaVel.vy));
+      inertiaVel.vx *= INERTIA_FRICTION;
+      inertiaVel.vy *= INERTIA_FRICTION;
+      redraw();
+      const sp = Math.hypot(inertiaVel.vx, inertiaVel.vy);
+      if (sp < INERTIA_MIN) {
+        cancelInertia();
+        document.body.classList.remove('interacting');
+        return;
+      }
+      inertiaRafId = requestAnimationFrame(step);
+    };
+    inertiaRafId = requestAnimationFrame(step);
+  }
+
   // Drag to rotate + pinch to zoom (multi-pointer)
   let dragging = null;
   const pointers = new Map();   // pointerId -> {x, y}
@@ -1514,6 +1578,8 @@ function redraw(){
   }
   svg.addEventListener('pointerdown', (e) => {
     if(e.target.closest('.marker')) return;
+    cancelInertia();                 // any tap on map cancels in-flight inertia
+    velSamples = [];                 // reset velocity window for new gesture
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (pointers.size === 2) {
       // Two-finger pinch starts
@@ -1548,6 +1614,14 @@ function redraw(){
     const rect = svg.getBoundingClientRect();
     const dx = (e.clientX - dragging.x) * (1000 / rect.width);
     const dy = (e.clientY - dragging.y) * (560 / rect.height);
+    // Record incremental delta since last frame for velocity tracking
+    const prevX = (dragging._lastX != null) ? dragging._lastX : dragging.x;
+    const prevY = (dragging._lastY != null) ? dragging._lastY : dragging.y;
+    const incDx = (e.clientX - prevX) * (1000 / rect.width);
+    const incDy = (e.clientY - prevY) * (560 / rect.height);
+    dragging._lastX = e.clientX;
+    dragging._lastY = e.clientY;
+    recordSample(incDx, incDy);
     const k = view.scale / BASE_SCALE;
     const sens = 0.25 / k;
     view.rotate[0] = dragging.r[0] + dx * sens;
@@ -1558,8 +1632,16 @@ function redraw(){
     pointers.delete(e.pointerId);
     if (pointers.size < 2) pinchStart = null;
     if (pointers.size === 0) {
+      // Compute release velocity from recent samples + start inertia decay
+      const wasDragging = !!dragging;
+      const releaseVel = wasDragging ? computeReleaseVelocity() : null;
       dragging = null;
-      document.body.classList.remove('interacting');
+      // Only stop the 'interacting' class if no inertia is going to keep going
+      if (!releaseVel || Math.hypot(releaseVel.vx, releaseVel.vy) < INERTIA_MIN * 4) {
+        document.body.classList.remove('interacting');
+      } else {
+        startInertia(releaseVel.vx, releaseVel.vy);
+      }
     }
     svg.style.cursor = 'grab';
     try{ svg.releasePointerCapture(e.pointerId); }catch(_){}
