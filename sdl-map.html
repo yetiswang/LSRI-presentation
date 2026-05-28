@@ -709,7 +709,7 @@ footer .leg .circ{ border:1px solid var(--ink-3); border-radius:50%; }
   footer.bot { display: none; }
   /* But keep a build version readable in the title bar bottom corner */
   header.top::after {
-    content: 'mobile-v18-labels-stay';
+    content: 'mobile-v19-precision-throttle';
     position: absolute;
     bottom: 2px;
     right: 8px;
@@ -1495,22 +1495,35 @@ window.SDL_CATEGORIES = {
     return Math.acos(Math.max(-1,Math.min(1,cos))) * 180/Math.PI;
   }
 
-    // rAF-batched redraw to prevent multi-call-per-frame churn during drag/pinch (mobile v9)
+    // rAF-batched redraw with 30fps throttle during interaction (mobile v19)
   let _rafId = null;
   let _rafDirty = false;
+  let _lastRedrawAt = 0;
   function redrawRaf(){
     _rafDirty = true;
     if (_rafId !== null) return;
-    _rafId = requestAnimationFrame(() => {
+    function tick(){
       _rafId = null;
+      const interacting = document.body.classList.contains('interacting');
+      const now = performance.now();
+      // Throttle to ~30fps during interaction (28ms ≈ 35.7fps cap); full speed idle
+      if (interacting && now - _lastRedrawAt < 28) {
+        _rafId = requestAnimationFrame(tick);
+        return;
+      }
       if (_rafDirty) {
         _rafDirty = false;
+        _lastRedrawAt = now;
         redraw();
       }
-    });
+    }
+    _rafId = requestAnimationFrame(tick);
   }
 
 function redraw(){
+    // v19: coarse projection precision during interaction (10× faster border paths)
+    const isInteracting = document.body.classList.contains('interacting');
+    projection.precision(isInteracting ? 8 : 0.7);
     projection.scale(view.scale).rotate(view.rotate);
     const k = view.scale / BASE_SCALE;
 
