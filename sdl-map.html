@@ -709,7 +709,7 @@ footer .leg .circ{ border:1px solid var(--ink-3); border-radius:50%; }
   footer.bot { display: none; }
   /* But keep a build version readable in the title bar bottom corner */
   header.top::after {
-    content: 'mobile-v15-async-fix';
+    content: 'mobile-v16-CATS-scope';
     position: absolute;
     bottom: 2px;
     right: 8px;
@@ -2008,6 +2008,7 @@ function setupBottomSheet(){
 
   function openSheet(d){
     if (!isMobile()) return;
+    const CATS = window.SDL_CATEGORIES;   // scoped const inside async IIFE was unreachable here
     const tierLabel = CATS.tier.options.find(o => o.id === d.tier)?.label || d.tier;
     const matLabel = CATS.maturity.options.find(o => o.id === d.maturity)?.label || d.maturity;
     const domLabel = CATS.domain.options.find(o => o.id === d.domain)?.label || d.domain;
