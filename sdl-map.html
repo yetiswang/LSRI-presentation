@@ -699,7 +699,7 @@ footer .leg .circ{ border:1px solid var(--ink-3); border-radius:50%; }
   footer.bot { display: none; }
   /* But keep a build version readable in the title bar bottom corner */
   header.top::after {
-    content: 'mobile-v4';
+    content: 'mobile-v5';
     position: absolute;
     bottom: 2px;
     right: 8px;
@@ -1188,6 +1188,8 @@ window.SDL_CATEGORIES = {
     g.addEventListener('mouseenter', e => showTip(d, e));
     g.addEventListener('mousemove', e => moveTip(e));
     g.addEventListener('mouseleave', () => hideTip());
+    // Click on marker = pin the tip; also handles mobile tap (mouseleave never fires on touch)
+    g.addEventListener('click', e => { showTip(d, e); e.stopPropagation(); });
 
     gMarkers.appendChild(g);
   });
@@ -1504,6 +1506,23 @@ window.SDL_CATEGORIES = {
   svg.addEventListener('pointerup', endDrag);
   svg.addEventListener('pointercancel', endDrag);
   svg.addEventListener('pointerleave', endDrag);
+
+  // Tap/click on empty map (not on a marker) closes the tip
+  svg.addEventListener('click', (e) => {
+    if (!e.target.closest('.marker')) {
+      hideTip();
+    }
+  });
+
+  // Belt + suspenders: on touchstart on empty map, also dismiss (handles iOS quirks where click fires late)
+  svg.addEventListener('touchstart', (e) => {
+    if (!e.target.closest('.marker') && e.touches.length === 1) {
+      // Don't hide while user is mid-drag; only on initial single touch
+      // The click handler above also fires, but this is faster on iOS
+      hideTip();
+    }
+  }, { passive: true });
+
 
   // Wheel to zoom
   svg.addEventListener('wheel', (e) => {
