@@ -338,9 +338,227 @@ footer .leg .circ{ border:1px solid var(--ink-3); border-radius:50%; }
   pointer-events:none; transition:opacity .5s;
 }
 .zoom-hint.fade{ opacity:0; }
+
+/* ============================================================
+   MOBILE RESPONSIVE — added 2026-05-28
+   Strategy: collapse 3-col grid to single col, hide sidebars
+   behind toggle buttons, bump fonts + tap targets for touch.
+   ============================================================ */
+
+/* Tablet + phone: ≤900px */
+@media (max-width: 900px) {
+  #app {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr auto;
+    grid-template-areas:
+      "header"
+      "map"
+      "footer";
+    min-height: 100dvh;
+  }
+  /* Header: vertical stack, smaller */
+  header.top {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 14px 16px 12px;
+    gap: 10px;
+  }
+  .brand h1 { font-size: 22px; line-height: 1.2; }
+  .brand .eyebrow { font-size: 10px; }
+  .counts {
+    width: 100%;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .counts .n { font-size: 18px; }
+  .counts .lbl { font-size: 10px; }
+  /* Sidebars become full-width overlay sheets */
+  aside.left, aside.right {
+    position: fixed;
+    top: 0;
+    height: 100dvh;
+    width: 86vw;
+    max-width: 360px;
+    z-index: 100;
+    background: var(--bg);
+    border: 0;
+    box-shadow: 0 0 60px rgba(0,0,0,0.7);
+    transition: transform .25s ease;
+    padding: 16px 18px 24px;
+    max-height: 100dvh;
+    overflow-y: auto;
+  }
+  aside.left {
+    left: 0;
+    transform: translateX(-100%);
+    border-right: 1px solid var(--rule);
+  }
+  aside.right {
+    right: 0;
+    transform: translateX(100%);
+    border-left: 1px solid var(--rule);
+  }
+  aside.left.open { transform: translateX(0); }
+  aside.right.open { transform: translateX(0); }
+  /* Backdrop when a drawer is open */
+  .drawer-backdrop {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.55);
+    z-index: 99;
+    backdrop-filter: blur(2px);
+  }
+  body.drawer-open .drawer-backdrop { display: block; }
+  /* Drawer close X */
+  .drawer-close {
+    position: absolute; top: 12px; right: 12px;
+    width: 36px; height: 36px;
+    background: var(--bg-2);
+    border: 1px solid var(--rule);
+    color: var(--ink);
+    border-radius: 4px;
+    font-size: 20px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  /* Mobile-only floating toggle buttons */
+  .mob-toggle {
+    position: fixed;
+    bottom: 70px;
+    z-index: 50;
+    background: oklch(0.16 0.01 240 / 0.96);
+    border: 1px solid var(--rule);
+    color: var(--ink);
+    padding: 12px 18px;
+    border-radius: 24px;
+    font-family: var(--font-sans);
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+    min-height: 44px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .mob-toggle.left  { left: 16px; }
+  .mob-toggle.right { right: 16px; }
+  .mob-toggle .badge {
+    background: var(--accent);
+    color: var(--bg);
+    border-radius: 10px;
+    padding: 2px 7px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-left: 2px;
+  }
+  /* Bigger touch targets + readable type in sidebars */
+  .section-h { font-size: 11px; margin: 18px 0 10px; }
+  .chip {
+    padding: 11px 12px;
+    font-size: 14px;
+    min-height: 44px;
+    gap: 12px;
+  }
+  .chip .dot { width: 10px; height: 10px; }
+  .chip .n { font-size: 12px; }
+  .legend-row { font-size: 13px; padding: 7px 0; }
+  .reset-btn {
+    padding: 11px 12px;
+    font-size: 12px;
+    min-height: 44px;
+  }
+  .list-item { padding: 12px 4px; min-height: 56px; }
+  .list-item .lname { font-size: 14px; }
+  .list-item .lmeta, .list-item .lcountry { font-size: 11px; }
+  /* Map takes full viewport between header and footer */
+  .map-wrap { min-height: calc(100dvh - 140px); }
+  /* Zoom controls + region nav: slightly larger touch targets */
+  .zoom-ctl {
+    top: 12px; right: 12px; padding: 6px;
+  }
+  .zoom-ctl button {
+    width: 40px; height: 40px;
+    font-size: 22px;
+  }
+  .zoom-ctl #z-reset { font-size: 18px; }
+  .region-nav { top: 168px; right: 12px; }
+  .region-nav button {
+    padding: 9px 12px;
+    font-size: 12px;
+    min-height: 36px;
+  }
+  /* Tooltip: anchored at bottom on mobile, wider */
+  .tip {
+    left: 8px !important;
+    right: 8px !important;
+    bottom: 76px !important;
+    top: auto !important;
+    transform: none !important;
+    min-width: 0;
+    max-width: none;
+    width: auto;
+    font-size: 13px;
+    padding: 14px 16px;
+  }
+  .tip .t-name { font-size: 15px; }
+  .tip .t-meta { font-size: 11px; }
+  .tip .t-row { padding: 4px 0; font-size: 13px; }
+  .tip .t-row .k { font-size: 11px; }
+  /* Filter callout: smaller + lower */
+  .filter-callout {
+    font-size: 11px;
+    padding: 6px 12px;
+    max-width: 86vw;
+    top: 6px !important;
+  }
+  /* Map zoom hint */
+  .zoom-hint {
+    display: none;
+  }
+  /* Footer: shrink */
+  footer.bot {
+    padding: 10px 14px;
+    font-size: 9.5px;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+    text-align: left;
+  }
+  footer .leg { flex-wrap: wrap; gap: 12px; }
+  /* Marker labels: hide on mobile to reduce clutter */
+  .marker-label { display: none; }
+}
+
+/* Phone narrow: ≤480px */
+@media (max-width: 480px) {
+  .brand h1 { font-size: 19px; }
+  .brand h1 .dim { display: none; }
+  .counts { gap: 10px; }
+  .counts .n { font-size: 16px; }
+  header.top { padding: 12px 14px 10px; gap: 8px; }
+  /* Drawer fills more of the screen */
+  aside.left, aside.right { width: 92vw; max-width: none; }
+  .mob-toggle {
+    bottom: 60px;
+    padding: 10px 14px;
+    font-size: 13px;
+  }
+  /* Tooltip even more compact */
+  .tip { bottom: 64px !important; padding: 12px 14px; }
+}
+
+/* Show mobile-only elements only at narrow widths */
+.mob-only { display: none; }
+@media (max-width: 900px) { .mob-only { display: flex; } }
+
 </style>
 </head>
 <body>
+<button class="mob-toggle mob-only left" id="mob-filters" aria-label="Open filters">☰ Filters</button>
+<button class="mob-toggle mob-only right" id="mob-selected" aria-label="Open selected list">★ Selected <span class="badge" id="mob-selected-n">0</span></button>
+<div class="drawer-backdrop" id="drawer-backdrop"></div>
+
   <div id="app"></div>
 
 <script>
@@ -1178,6 +1396,67 @@ window.SDL_CATEGORIES = {
   redraw();
   render();
 })();
+
+
+/* ============ MOBILE DRAWER TOGGLES (added 2026-05-28) ============ */
+(function setupMobileDrawers(){
+  const body = document.body;
+  const left = document.querySelector('aside.left');
+  const right = document.querySelector('aside.right');
+  const backdrop = document.getElementById('drawer-backdrop');
+  const btnFilters = document.getElementById('mob-filters');
+  const btnSelected = document.getElementById('mob-selected');
+  if (!left || !right || !btnFilters || !btnSelected) return;
+
+  function closeAll(){
+    left.classList.remove('open');
+    right.classList.remove('open');
+    body.classList.remove('drawer-open');
+  }
+  function openLeft(){
+    closeAll();
+    left.classList.add('open');
+    body.classList.add('drawer-open');
+    if (!left.querySelector('.drawer-close')) addCloseButton(left);
+  }
+  function openRight(){
+    closeAll();
+    right.classList.add('open');
+    body.classList.add('drawer-open');
+    if (!right.querySelector('.drawer-close')) addCloseButton(right);
+  }
+  function addCloseButton(el){
+    const btn = document.createElement('button');
+    btn.className = 'drawer-close';
+    btn.innerHTML = '×';
+    btn.setAttribute('aria-label', 'Close');
+    btn.addEventListener('click', closeAll);
+    el.appendChild(btn);
+  }
+  btnFilters.addEventListener('click', openLeft);
+  btnSelected.addEventListener('click', openRight);
+  backdrop.addEventListener('click', closeAll);
+
+  // ESC to close
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeAll();
+  });
+
+  // Update badge count for selected (looks at active filter chips)
+  function updateBadge(){
+    const badge = document.getElementById('mob-selected-n');
+    if (!badge) return;
+    const activeCount = document.querySelectorAll('.chip.active').length || 0;
+    badge.textContent = activeCount;
+    badge.style.display = activeCount > 0 ? 'inline-block' : 'none';
+  }
+  updateBadge();
+  // Re-check on any chip click
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('.chip')) setTimeout(updateBadge, 50);
+  });
+})();
+
 </script>
 </body>
 </html>
