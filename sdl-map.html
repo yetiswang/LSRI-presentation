@@ -709,7 +709,7 @@ footer .leg .circ{ border:1px solid var(--ink-3); border-radius:50%; }
   footer.bot { display: none; }
   /* But keep a build version readable in the title bar bottom corner */
   header.top::after {
-    content: 'mobile-v20-first-frame';
+    content: 'mobile-v21-coast-precision';
     position: absolute;
     bottom: 2px;
     right: 8px;
@@ -1678,7 +1678,11 @@ function redraw(){
       const sp = Math.hypot(inertiaVel.vx, inertiaVel.vy);
       if (sp < INERTIA_MIN) {
         cancelInertia();
-        document.body.classList.remove('interacting');
+        // Defer the class removal one rAF and ramp precision back gradually
+        requestAnimationFrame(() => {
+          document.body.classList.remove('interacting');
+          precisionRamp();
+        });
         return;
       }
       inertiaRafId = requestAnimationFrame(step);
@@ -1749,17 +1753,40 @@ function redraw(){
     view.rotate[1] = Math.max(-89, Math.min(89, dragging.r[1] - dy * sens));
     redrawRaf();
   });
+  // v21: smooth-precision-ramp coast on gesture end
+  let _precisionRampId = null;
+  function precisionRamp(){
+    if (_precisionRampId) cancelAnimationFrame(_precisionRampId);
+    const steps = [4, 2, 1, 0.7];  // 4 frames to walk precision back from coarse → sharp
+    let i = 0;
+    function tick(){
+      projection.precision(steps[i]);
+      redraw();
+      i++;
+      if (i < steps.length) {
+        _precisionRampId = requestAnimationFrame(tick);
+      } else {
+        _precisionRampId = null;
+      }
+    }
+    _precisionRampId = requestAnimationFrame(tick);
+  }
+
   function endDrag(e){
     pointers.delete(e.pointerId);
     if (pointers.size < 2) pinchStart = null;
     if (pointers.size === 0) {
-      // Compute release velocity from recent samples + start inertia decay
       const wasDragging = !!dragging;
       const releaseVel = wasDragging ? computeReleaseVelocity() : null;
       dragging = null;
-      // Only stop the 'interacting' class if no inertia is going to keep going
       if (!releaseVel || Math.hypot(releaseVel.vx, releaseVel.vy) < INERTIA_MIN * 4) {
-        document.body.classList.remove('interacting');
+        // No inertia: keep interacting class for one more rAF, then remove + ramp precision back.
+        // This hides the precision-snap-back work in the perceptual gap between
+        // motion-ending and stillness-starting.
+        requestAnimationFrame(() => {
+          document.body.classList.remove('interacting');
+          precisionRamp();
+        });
       } else {
         startInertia(releaseVel.vx, releaseVel.vy);
       }
