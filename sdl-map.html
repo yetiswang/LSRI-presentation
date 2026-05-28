@@ -709,7 +709,7 @@ footer .leg .circ{ border:1px solid var(--ink-3); border-radius:50%; }
   footer.bot { display: none; }
   /* But keep a build version readable in the title bar bottom corner */
   header.top::after {
-    content: 'mobile-v19-precision-throttle';
+    content: 'mobile-v20-first-frame';
     position: absolute;
     bottom: 2px;
     right: 8px;
@@ -753,17 +753,18 @@ footer .leg .circ{ border:1px solid var(--ink-3); border-radius:50%; }
 /* v18: only hide the genuinely heavy graticule + provinces during interaction
    so the user doesn't see country-name pop-in/pop-out lag.
    Labels stay visible during drag; their positions update every frame. */
+/* v20: instant hide for graticule/provinces — no transition causes faster first frame */
 body.interacting .graticule,
-body.interacting .provinces {
-  opacity: 0;
-}
-body.interacting .marker-label {
-  visibility: hidden;
-}
-.graticule, .provinces {
-  transition: opacity 0.18s ease-out;
-}
+body.interacting .provinces { opacity: 0; }
+body.interacting .marker-label { visibility: hidden; }
 body.interacting .land { opacity: 0.92; }
+/* Pre-warm GPU layers so the first touch doesn't pay layer-promotion cost */
+.land, .borders, .graticule, .provinces, #markers, #map {
+  will-change: opacity, transform;
+  transform: translateZ(0);
+}
+/* Container hint to keep the whole SVG on its own compositing layer */
+.map-wrap { transform: translateZ(0); will-change: transform; }
 /* GPU compositing hint */
 .map-wrap, #map { will-change: transform; }
 
@@ -2317,6 +2318,19 @@ window.__bcdebug = {
     }
   });
 })();
+
+
+/* v20: one-shot pre-warm so the first real touch doesn't pay first-time layer cost.
+   Toggles body.interacting once at idle to flush CSS recalc + layer promotion. */
+window.requestIdleCallback ? requestIdleCallback(prewarmInteracting, {timeout: 1500}) : setTimeout(prewarmInteracting, 800);
+function prewarmInteracting(){
+  document.body.classList.add('interacting');
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      document.body.classList.remove('interacting');
+    });
+  });
+}
 </script>
 </body>
 </html>
