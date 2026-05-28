@@ -709,7 +709,7 @@ footer .leg .circ{ border:1px solid var(--ink-3); border-radius:50%; }
   footer.bot { display: none; }
   /* But keep a build version readable in the title bar bottom corner */
   header.top::after {
-    content: 'mobile-v16-CATS-scope';
+    content: 'mobile-v17-label-skip';
     position: absolute;
     bottom: 2px;
     right: 8px;
@@ -757,6 +757,18 @@ body.interacting .graticule,
 body.interacting .provinces,
 body.interacting .borders {
   visibility: hidden;
+  opacity: 0;
+}
+.country-label, .province-label, .marker-label, .graticule, .provinces, .borders {
+  transition: opacity 0.18s ease-out, visibility 0s linear 0s;
+}
+body.interacting .country-label,
+body.interacting .province-label,
+body.interacting .marker-label,
+body.interacting .graticule,
+body.interacting .provinces,
+body.interacting .borders {
+  transition: opacity 0s linear, visibility 0s linear 0s;
 }
 body.interacting .land { opacity: 0.85; }
 /* GPU compositing hint */
@@ -1550,34 +1562,46 @@ function redraw(){
       }
     });
 
-    gLabels.querySelectorAll('.country-label, .province-label').forEach(el => el.style.display = 'none');
-    countryLabels.forEach(l => {
-      const dist = gcDist(center, l.coord);
-      if(dist >= 78){ return; }
-      const tier = l._el.dataset.tier;
-      const show = (tier === '1' && k >= 1.0) ||
-                   (tier === '2' && k >= 1.8) ||
-                   (tier === '3' && k >= 3.0);
-      if(!show) return;
-      const p = projection(l.coord);
-      if(!p) return;
-      l._el.style.display = '';
-      l._el.setAttribute('x', p[0]);
-      l._el.setAttribute('y', p[1]);
-      l._el.style.opacity = '1';
-    });
-    if(k >= 3.5){
-      provinceLabels.forEach(l => {
+    // v17 perf: skip ALL label-position work during drag/pinch/inertia.
+    // The CSS already hides labels via `body.interacting { visibility:hidden }`,
+    // so the user can't see them — but the loop below was still running ~100+
+    // gcDist + projection + 3 attribute writes per frame, which was the
+    // measurable lag the user reported.
+    if (!document.body.classList.contains('interacting')) {
+      // Cache the selector once: countryLabels + provinceLabels arrays already
+      // hold the elements. We only need to hide elements that weren't matched.
+      countryLabels.forEach(l => {
         const dist = gcDist(center, l.coord);
-        if(dist >= 60) return;
+        if(dist >= 78){ l._el.style.display = 'none'; return; }
+        const tier = l._el.dataset.tier;
+        const show = (tier === '1' && k >= 1.0) ||
+                     (tier === '2' && k >= 1.8) ||
+                     (tier === '3' && k >= 3.0);
+        if(!show) { l._el.style.display = 'none'; return; }
         const p = projection(l.coord);
-        if(!p) return;
+        if(!p) { l._el.style.display = 'none'; return; }
         l._el.style.display = '';
         l._el.setAttribute('x', p[0]);
         l._el.setAttribute('y', p[1]);
         l._el.style.opacity = '1';
       });
+      if(k >= 3.5){
+        provinceLabels.forEach(l => {
+          const dist = gcDist(center, l.coord);
+          if(dist >= 60) { l._el.style.display = 'none'; return; }
+          const p = projection(l.coord);
+          if(!p) { l._el.style.display = 'none'; return; }
+          l._el.style.display = '';
+          l._el.setAttribute('x', p[0]);
+          l._el.setAttribute('y', p[1]);
+          l._el.style.opacity = '1';
+        });
+      } else {
+        provinceLabels.forEach(l => { l._el.style.display = 'none'; });
+      }
     }
+    // else: labels are invisible via CSS; skip the work entirely. When
+    // interaction ends, the next redraw will catch up.
   }
 
   function clampScale(s){ return Math.max(view.min, Math.min(view.max, s)); }
