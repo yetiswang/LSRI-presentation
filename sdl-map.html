@@ -709,7 +709,7 @@ footer .leg .circ{ border:1px solid var(--ink-3); border-radius:50%; }
   footer.bot { display: none; }
   /* But keep a build version readable in the title bar bottom corner */
   header.top::after {
-    content: 'mobile-v13-bugfix';
+    content: 'mobile-v14-sheet-z';
     position: absolute;
     bottom: 2px;
     right: 8px;
@@ -778,7 +778,7 @@ body.interacting .land { opacity: 0.85; }
   box-shadow: 0 -8px 32px rgba(0,0,0,0.5);
   transform: translateY(100%);
   transition: transform 0.32s cubic-bezier(0.4, 0.0, 0.2, 1);
-  z-index: 90;
+  z-index: 105;  /* above drawer-backdrop (99) so sheet is visible */
   max-height: 72vh;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
@@ -823,7 +823,7 @@ body.interacting .land { opacity: 0.85; }
   .sheet { display: block; }
   .tip { display: none !important; }
   /* Bottom-sheet backdrop reuses the drawer backdrop pattern */
-  body.sheet-open .drawer-backdrop { display: block; }
+  body.sheet-open .drawer-backdrop { display: block !important; z-index: 100; }
   /* When sheet is open, push zoom controls up so they're not hidden */
   body.sheet-open .zoom-ctl,
   body.sheet-open .region-nav {
@@ -2089,10 +2089,11 @@ function redraw(){
     };
   }
   function closeAllDrawers(){
-    const {left, right} = getDrawers();
+    const {left, right, back} = getDrawers();
     left?.classList.remove('open');
     right?.classList.remove('open');
     document.body.classList.remove('drawer-open');
+    if (back) back.style.display = '';  // clear any stale inline display
   }
   function openDrawer(side){
     const {left, right, back} = getDrawers();
@@ -2101,7 +2102,7 @@ function redraw(){
     if (!el) return;
     el.classList.add('open');
     document.body.classList.add('drawer-open');
-    if (back) back.style.display = 'block';
+    // backdrop visibility is handled via CSS (body.drawer-open .drawer-backdrop {display:block})
     // Add a close × button to the drawer if not already present
     if (!el.querySelector('.drawer-close')) {
       const btn = document.createElement('button');
@@ -2245,6 +2246,24 @@ function redraw(){
   window.addEventListener('blur', () => document.body.classList.remove('interacting'));
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) document.body.classList.remove('interacting');
+  });
+})();
+
+
+/* v14 DIAG: short window-attached log for Safari Web Inspector debugging */
+window.__bcdebug = {
+  log: (...args) => { console.log('[bc-mobile]', ...args); window.__bcdebug.history.push(args); },
+  history: []
+};
+(function () {
+  function isMobile(){ return window.matchMedia('(max-width: 900px)').matches; }
+  document.addEventListener('click', e => {
+    const m = e.target.closest('.marker');
+    if (m) {
+      window.__bcdebug.log('marker click', m.getAttribute('data-id'), 'isMobile=', isMobile());
+      const sheet = document.getElementById('sdl-sheet');
+      window.__bcdebug.log('sheet exists=', !!sheet, 'sheet has .open=', sheet?.classList.contains('open'));
+    }
   });
 })();
 </script>
