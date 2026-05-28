@@ -709,7 +709,7 @@ footer .leg .circ{ border:1px solid var(--ink-3); border-radius:50%; }
   footer.bot { display: none; }
   /* But keep a build version readable in the title bar bottom corner */
   header.top::after {
-    content: 'mobile-v8-touch-fixes';
+    content: 'mobile-v9-smooth';
     position: absolute;
     bottom: 2px;
     right: 8px;
@@ -748,6 +748,19 @@ footer .leg .circ{ border:1px solid var(--ink-3); border-radius:50%; }
 }
 .marker { pointer-events: all !important; }
 .marker.dim .hit { pointer-events: none; }
+
+/* v9: hide expensive layers during interaction for smoother drag/pinch */
+body.interacting .country-label,
+body.interacting .province-label,
+body.interacting .marker-label,
+body.interacting .graticule,
+body.interacting .provinces,
+body.interacting .borders {
+  visibility: hidden;
+}
+body.interacting .land { opacity: 0.85; }
+/* GPU compositing hint */
+.map-wrap, #map { will-change: transform; }
 </style>
 </head>
 <body>
@@ -1391,7 +1404,22 @@ window.SDL_CATEGORIES = {
     return Math.acos(Math.max(-1,Math.min(1,cos))) * 180/Math.PI;
   }
 
-  function redraw(){
+    // rAF-batched redraw to prevent multi-call-per-frame churn during drag/pinch (mobile v9)
+  let _rafId = null;
+  let _rafDirty = false;
+  function redrawRaf(){
+    _rafDirty = true;
+    if (_rafId !== null) return;
+    _rafId = requestAnimationFrame(() => {
+      _rafId = null;
+      if (_rafDirty) {
+        _rafDirty = false;
+        redraw();
+      }
+    });
+  }
+
+function redraw(){
     projection.scale(view.scale).rotate(view.rotate);
     const k = view.scale / BASE_SCALE;
 
@@ -1492,6 +1520,7 @@ window.SDL_CATEGORIES = {
       pinchStart = { dist: pinchDist(), viewScale: view.scale };
       dragging = null;
       svg.style.cursor = 'grab';
+      document.body.classList.add('interacting');
       return;
     }
     if (pointers.size === 1) {
@@ -1499,6 +1528,7 @@ window.SDL_CATEGORIES = {
       try { svg.setPointerCapture(e.pointerId); } catch(_) {}
       svg.style.cursor = 'grabbing';
       zHint.classList.add('fade');
+      document.body.classList.add('interacting');
     }
   });
   svg.addEventListener('pointermove', (e) => {
@@ -1510,7 +1540,7 @@ window.SDL_CATEGORIES = {
       const d = pinchDist();
       if (d > 0 && pinchStart.dist > 0) {
         view.scale = clampScale(pinchStart.viewScale * (d / pinchStart.dist));
-        redraw();
+        redrawRaf();
       }
       return;
     }
@@ -1522,13 +1552,15 @@ window.SDL_CATEGORIES = {
     const sens = 0.25 / k;
     view.rotate[0] = dragging.r[0] + dx * sens;
     view.rotate[1] = Math.max(-89, Math.min(89, dragging.r[1] - dy * sens));
-    redraw();
+    redrawRaf();
   });
   function endDrag(e){
     pointers.delete(e.pointerId);
     if (pointers.size < 2) pinchStart = null;
-    if(!dragging) return;
-    if (pointers.size === 0) dragging = null;
+    if (pointers.size === 0) {
+      dragging = null;
+      document.body.classList.remove('interacting');
+    }
     svg.style.cursor = 'grab';
     try{ svg.releasePointerCapture(e.pointerId); }catch(_){}
   }
