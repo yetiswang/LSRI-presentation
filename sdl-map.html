@@ -709,7 +709,7 @@ footer .leg .circ{ border:1px solid var(--ink-3); border-radius:50%; }
   footer.bot { display: none; }
   /* But keep a build version readable in the title bar bottom corner */
   header.top::after {
-    content: 'mobile-v12-mapsfeel';
+    content: 'mobile-v13-bugfix';
     position: absolute;
     bottom: 2px;
     right: 8px;
@@ -1317,7 +1317,7 @@ window.SDL_CATEGORIES = {
     g.addEventListener('mousemove', e => moveTip(e));
     g.addEventListener('mouseleave', () => hideTip());
     // Click on marker = pin the tip; also handles mobile tap (mouseleave never fires on touch)
-    g.addEventListener('click', e => { showTip(d, e); e.stopPropagation(); });
+    g.addEventListener('click', e => { showTip(d, e); /* no stopPropagation — let document-level sheet handler also fire */ });
 
     gMarkers.appendChild(g);
   });
@@ -2102,6 +2102,16 @@ function redraw(){
     el.classList.add('open');
     document.body.classList.add('drawer-open');
     if (back) back.style.display = 'block';
+    // Add a close × button to the drawer if not already present
+    if (!el.querySelector('.drawer-close')) {
+      const btn = document.createElement('button');
+      btn.className = 'drawer-close';
+      btn.innerHTML = '×';
+      btn.setAttribute('aria-label', 'Close');
+      btn.addEventListener('click', closeAllDrawers);
+      btn.addEventListener('pointerdown', e => { e.stopPropagation(); }, {passive: true});
+      el.appendChild(btn);
+    }
   }
   // Use BOTH pointerdown (faster on iOS) AND click (universal) so taps register
   // even if iOS suppresses the synthesized click after a missed pointerdown.
@@ -2157,20 +2167,21 @@ function redraw(){
   if (zOut) zOut.onclick = () => smoothZoom(1/1.7, 260);
 
   // === 3. Double-tap to zoom in (Maps-app classic) ===
-  // svg might not exist yet; query lazily
+  // Uses local pointer tracking; doesn't depend on the drag IIFE's `pointers`
   function attachDoubletapZoom(){
     const svg = document.getElementById('map');
     if (!svg) return;
     let lastTapTime = 0;
     let lastTapX = 0, lastTapY = 0;
+    const tapPointers = new Map();   // local — independent of drag IIFE
     svg.addEventListener('pointerdown', e => {
+      tapPointers.set(e.pointerId, {x: e.clientX, y: e.clientY, t: performance.now()});
       if (e.pointerType !== 'touch' && e.pointerType !== 'pen') return;
-      // Marker double-tap handled by single-tap pin selection; ignore on markers
       if (e.target.closest('.marker')) return;
       const now = performance.now();
       const dx = Math.abs(e.clientX - lastTapX);
       const dy = Math.abs(e.clientY - lastTapY);
-      if (now - lastTapTime < 320 && dx < 30 && dy < 30) {
+      if (now - lastTapTime < 320 && dx < 30 && dy < 30 && tapPointers.size === 1) {
         // Double-tap detected → zoom in 1.8× toward tap point
         const rect = svg.getBoundingClientRect();
         const sx = (e.clientX - rect.left) * (1000 / rect.width);
@@ -2190,26 +2201,51 @@ function redraw(){
         lastTapY = e.clientY;
       }
     });
-    // Two-finger tap → zoom out 1.8×
-    let twoFingerTapId = null;
-    svg.addEventListener('pointerdown', e => {
-      if (pointers.size === 2 && !twoFingerTapId) {
-        twoFingerTapId = setTimeout(() => { twoFingerTapId = null; }, 250);
+    function pointerEnd(e){
+      const start = tapPointers.get(e.pointerId);
+      tapPointers.delete(e.pointerId);
+      if (!start) return;
+      // Two-finger tap-out detection: if 2 pointers came down briefly, then both released without moving much
+      const dur = performance.now() - start.t;
+      const moved = e.clientX != null ? Math.hypot(e.clientX - start.x, e.clientY - start.y) : 0;
+      if (tapPointers.size === 1 && dur < 280 && moved < 18) {
+        // The OTHER pointer just released after a short two-finger tap → zoom out
+        const other = tapPointers.values().next().value;
+        if (other && performance.now() - other.t < 320) {
+          smoothZoom(1/1.8, 280);
+          tapPointers.clear();   // consume
+        }
       }
-    });
-    svg.addEventListener('pointerup', e => {
-      if (pointers.size === 1 && twoFingerTapId) {
-        clearTimeout(twoFingerTapId);
-        twoFingerTapId = null;
-        smoothZoom(1/1.8, 280);
-      }
-    });
+    }
+    svg.addEventListener('pointerup', pointerEnd);
+    svg.addEventListener('pointercancel', e => { tapPointers.delete(e.pointerId); });
   }
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', attachDoubletapZoom);
   } else {
     attachDoubletapZoom();
   }
+})();
+
+
+/* v13 SAFETY: body.interacting class can never stay on for more than 2s
+   without an active touch — guards against stuck-class bugs */
+(function () {
+  let lastActivity = 0;
+  document.addEventListener('pointerdown', () => { lastActivity = performance.now(); }, { passive: true });
+  document.addEventListener('pointermove', () => { lastActivity = performance.now(); }, { passive: true });
+  document.addEventListener('pointerup', () => { lastActivity = performance.now(); }, { passive: true });
+  setInterval(() => {
+    if (!document.body.classList.contains('interacting')) return;
+    if (performance.now() - lastActivity > 2000) {
+      document.body.classList.remove('interacting');
+    }
+  }, 800);
+  // Also cancel + clear on visibility-change / blur
+  window.addEventListener('blur', () => document.body.classList.remove('interacting'));
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) document.body.classList.remove('interacting');
+  });
 })();
 </script>
 </body>
