@@ -709,7 +709,7 @@ footer .leg .circ{ border:1px solid var(--ink-3); border-radius:50%; }
   footer.bot { display: none; }
   /* But keep a build version readable in the title bar bottom corner */
   header.top::after {
-    content: 'mobile-v10-inertia';
+    content: 'mobile-v11-mapsfeel';
     position: absolute;
     bottom: 2px;
     right: 8px;
@@ -761,6 +761,85 @@ body.interacting .borders {
 body.interacting .land { opacity: 0.85; }
 /* GPU compositing hint */
 .map-wrap, #map { will-change: transform; }
+
+/* ============================================================
+   MOBILE v11 — Maps-app bottom sheet for pin details
+   Tap pin → sheet slides up. Swipe-down or tap backdrop → close.
+   Sheet replaces the floating tooltip on mobile.
+   ============================================================ */
+.sheet {
+  position: fixed;
+  left: 0; right: 0;
+  bottom: 0;
+  background: oklch(0.12 0.01 240);
+  border-top: 1px solid var(--rule);
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
+  box-shadow: 0 -8px 32px rgba(0,0,0,0.5);
+  transform: translateY(100%);
+  transition: transform 0.32s cubic-bezier(0.4, 0.0, 0.2, 1);
+  z-index: 90;
+  max-height: 72vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+  display: none;   /* desktop hides */
+}
+.sheet.open { transform: translateY(0); }
+.sheet-handle {
+  width: 40px; height: 4px;
+  background: var(--ink-3);
+  border-radius: 2px;
+  margin: 10px auto 6px;
+  opacity: 0.6;
+}
+.sheet-close {
+  position: absolute;
+  top: 12px; right: 12px;
+  width: 32px; height: 32px;
+  background: var(--bg-2);
+  border: 1px solid var(--rule);
+  color: var(--ink);
+  border-radius: 16px;
+  font-size: 18px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  z-index: 2;
+}
+.sheet-body { padding: 6px 22px 32px; }
+.sheet-head { display: flex; align-items: center; gap: 12px; margin: 8px 0 6px; }
+.sheet-head .s-dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
+.sheet-head .s-name { font-size: 22px; font-weight: 600; line-height: 1.2; color: var(--ink); flex: 1; min-width: 0; }
+.sheet-meta { font-family: var(--font-mono); font-size: 12px; color: var(--ink-3); letter-spacing: 0.1em; text-transform: uppercase; margin: 6px 0 14px; }
+.sheet-row { display: flex; justify-content: space-between; gap: 14px; padding: 10px 0; border-bottom: 1px solid var(--rule-2); }
+.sheet-row .k { color: var(--ink-3); font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; flex-shrink: 0; }
+.sheet-row .v { color: var(--ink); text-align: right; font-size: 14px; }
+
+/* Bottom-sheet shows only on mobile; tooltip suppressed on mobile */
+@media (min-width: 901px) {
+  .sheet { display: none !important; }
+}
+@media (max-width: 900px) {
+  .sheet { display: block; }
+  .tip { display: none !important; }
+  /* Bottom-sheet backdrop reuses the drawer backdrop pattern */
+  body.sheet-open .drawer-backdrop { display: block; }
+  /* When sheet is open, push zoom controls up so they're not hidden */
+  body.sheet-open .zoom-ctl,
+  body.sheet-open .region-nav {
+    transform: translateY(-72vh);
+    transition: transform 0.32s cubic-bezier(0.4, 0.0, 0.2, 1);
+  }
+  /* Selected pin highlight: brighter ring + pulse */
+  .marker.selected .ring {
+    opacity: 1;
+    stroke-width: 2;
+    stroke: var(--accent);
+  }
+  .marker.selected .core {
+    filter: brightness(1.6);
+  }
+}
 </style>
 </head>
 <body>
@@ -991,7 +1070,13 @@ window.SDL_CATEGORIES = {
       <div class="chips" data-group="charact"></div>
     </aside>
 
-    <footer class="bot">
+    
+  <div class="sheet" id="sdl-sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-name">
+    <div class="sheet-handle"></div>
+    <button class="sheet-close" id="sheet-close" aria-label="Close">×</button>
+    <div class="sheet-body" id="sheet-body"></div>
+  </div>
+<footer class="bot">
       <div>DiscoveryLabNL \u00B7 Landscape Matrix v.04.2026</div>
     </footer>
   `;
@@ -1195,6 +1280,7 @@ window.SDL_CATEGORIES = {
   DATA.forEach(d => {
     const g = document.createElementNS(ns,'g');
     g.setAttribute('class','marker');
+    g.setAttribute('data-id', d.id);
     g.style.color = 'var(--c-'+d.tier+')';
     d._el = g;
 
@@ -1894,6 +1980,101 @@ function redraw(){
   document.addEventListener('touchend', handleEnd, { passive: true });
 })();
 
+
+
+/* ============ MAPS-APP BOTTOM SHEET (mobile v11) ============ */
+(function setupBottomSheet(){
+  const sheet = document.getElementById('sdl-sheet');
+  const body = document.getElementById('sheet-body');
+  const closeBtn = document.getElementById('sheet-close');
+  const backdrop = document.getElementById('drawer-backdrop');
+  if (!sheet || !body) return;
+
+  function isMobile(){ return window.matchMedia('(max-width: 900px)').matches; }
+
+  function openSheet(d){
+    if (!isMobile()) return;
+    const tierLabel = CATS.tier.options.find(o => o.id === d.tier)?.label || d.tier;
+    const matLabel = CATS.maturity.options.find(o => o.id === d.maturity)?.label || d.maturity;
+    const domLabel = CATS.domain.options.find(o => o.id === d.domain)?.label || d.domain;
+    const chLabel = CATS.charact.options.find(o => o.id === d.charact)?.label || d.charact;
+    const tierColor = getComputedStyle(document.documentElement).getPropertyValue('--c-' + d.tier).trim() || '#888';
+    body.innerHTML = `
+      <div class="sheet-head">
+        <span class="s-dot" style="background:${tierColor}"></span>
+        <span class="s-name" id="sheet-name">${d.flag || ''} ${d.name}</span>
+      </div>
+      <div class="sheet-meta">${tierLabel} · ${d.city}, ${d.country}</div>
+      <div class="sheet-row"><span class="k">Org</span><span class="v">${d.org || '—'}</span></div>
+      <div class="sheet-row"><span class="k">Domain</span><span class="v">${domLabel}</span></div>
+      <div class="sheet-row"><span class="k">Maturity</span><span class="v">${matLabel}</span></div>
+      <div class="sheet-row"><span class="k">Characterisation</span><span class="v">${chLabel}</span></div>
+      <div class="sheet-row"><span class="k">AI</span><span class="v">${d.ai || '—'}</span></div>
+      <div class="sheet-row"><span class="k">Scale</span><span class="v">${d.scale || '—'}</span></div>
+      <div class="sheet-row"><span class="k">Investment</span><span class="v">${d.investLabel || '—'}</span></div>
+    `;
+    sheet.classList.add('open');
+    document.body.classList.add('sheet-open');
+    // Mark the selected marker
+    document.querySelectorAll('.marker.selected').forEach(m => m.classList.remove('selected'));
+    const markerEl = document.querySelector(`.marker[data-id="${d.id}"]`);
+    if (markerEl) markerEl.classList.add('selected');
+  }
+  function closeSheet(){
+    sheet.classList.remove('open');
+    document.body.classList.remove('sheet-open');
+    document.querySelectorAll('.marker.selected').forEach(m => m.classList.remove('selected'));
+  }
+
+  closeBtn?.addEventListener('click', closeSheet);
+  backdrop?.addEventListener('click', closeSheet);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
+
+  // Swipe-down on sheet to dismiss
+  let touchStartY = null;
+  let touchStartScroll = 0;
+  sheet.addEventListener('touchstart', e => {
+    if (e.touches.length !== 1) return;
+    touchStartY = e.touches[0].clientY;
+    touchStartScroll = sheet.scrollTop;
+  }, { passive: true });
+  sheet.addEventListener('touchmove', e => {
+    if (touchStartY === null) return;
+    // Only allow swipe-down dismissal if sheet is scrolled to top
+    if (sheet.scrollTop > 0) return;
+    const dy = e.touches[0].clientY - touchStartY;
+    if (dy > 0) {
+      sheet.style.transform = `translateY(${dy}px)`;
+    }
+  }, { passive: true });
+  sheet.addEventListener('touchend', e => {
+    if (touchStartY === null) return;
+    const dy = (e.changedTouches[0]?.clientY ?? touchStartY) - touchStartY;
+    sheet.style.transform = '';   // remove inline
+    if (sheet.scrollTop === 0 && dy > 80) closeSheet();
+    touchStartY = null;
+  }, { passive: true });
+
+  // Hook pin tap → openSheet on mobile
+  // We can't reuse showTip's signature directly; intercept .marker click events
+  document.addEventListener('click', e => {
+    if (!isMobile()) return;
+    const m = e.target.closest('.marker');
+    if (!m) return;
+    const id = m.getAttribute('data-id');
+    if (!id) return;
+    const d = window.SDL_DATA.find(x => x.id === id);
+    if (d) openSheet(d);
+  });
+
+  // Hide the desktop tip immediately on mobile so it doesn't flash
+  if (isMobile()) {
+    const tip = document.querySelector('.tip');
+    if (tip) tip.style.display = 'none';
+  }
+  // Expose for debugging
+  window.__sheet = { openSheet, closeSheet };
+})();
 </script>
 </body>
 </html>
