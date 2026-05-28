@@ -709,7 +709,7 @@ footer .leg .circ{ border:1px solid var(--ink-3); border-radius:50%; }
   footer.bot { display: none; }
   /* But keep a build version readable in the title bar bottom corner */
   header.top::after {
-    content: 'mobile-v11-mapsfeel';
+    content: 'mobile-v12-mapsfeel';
     position: absolute;
     bottom: 2px;
     right: 8px;
@@ -2074,6 +2074,142 @@ function redraw(){
   }
   // Expose for debugging
   window.__sheet = { openSheet, closeSheet };
+})();
+
+
+/* ============ MOBILE v12 — defensive button bindings + smooth zoom ============ */
+(function setupV12(){
+  // === 1. Defensive event delegation for drawer toggle buttons ===
+  // Works even if earlier IIFE failed to find the buttons at script-load time
+  function getDrawers(){
+    return {
+      left:  document.querySelector('aside.left'),
+      right: document.querySelector('aside.right'),
+      back:  document.getElementById('drawer-backdrop')
+    };
+  }
+  function closeAllDrawers(){
+    const {left, right} = getDrawers();
+    left?.classList.remove('open');
+    right?.classList.remove('open');
+    document.body.classList.remove('drawer-open');
+  }
+  function openDrawer(side){
+    const {left, right, back} = getDrawers();
+    closeAllDrawers();
+    const el = side === 'left' ? left : right;
+    if (!el) return;
+    el.classList.add('open');
+    document.body.classList.add('drawer-open');
+    if (back) back.style.display = 'block';
+  }
+  // Use BOTH pointerdown (faster on iOS) AND click (universal) so taps register
+  // even if iOS suppresses the synthesized click after a missed pointerdown.
+  ['pointerdown','click'].forEach(evt => {
+    document.addEventListener(evt, e => {
+      const t = e.target.closest('#mob-filters, #mob-selected, .drawer-close, .drawer-backdrop');
+      if (!t) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (t.id === 'mob-filters') openDrawer('left');
+      else if (t.id === 'mob-selected') openDrawer('right');
+      else if (t.classList.contains('drawer-close') || t.classList.contains('drawer-backdrop')) closeAllDrawers();
+    }, { passive: false });
+  });
+  // Visible-debug: tap any button briefly flashes its background — user can confirm tap detected
+  document.addEventListener('pointerdown', e => {
+    const t = e.target.closest('#mob-filters, #mob-selected');
+    if (!t) return;
+    t.style.background = 'rgba(255,255,255,0.2)';
+    setTimeout(() => { t.style.background = ''; }, 180);
+  }, { passive: true });
+
+  // === 2. Smooth-animated zoom for +/− buttons (Maps-app feel) ===
+  let zoomAnimId = null;
+  function smoothZoom(factor, durationMs){
+    cancelAnimationFrame(zoomAnimId);
+    durationMs = durationMs || 260;
+    const startScale = view.scale;
+    const targetScale = clampScale(startScale * factor);
+    const t0 = performance.now();
+    function step(){
+      const t = (performance.now() - t0) / durationMs;
+      if (t >= 1) {
+        view.scale = targetScale;
+        redraw();
+        document.body.classList.remove('interacting');
+        zoomAnimId = null;
+        return;
+      }
+      // Ease-out cubic
+      const e = 1 - Math.pow(1 - t, 3);
+      view.scale = startScale + (targetScale - startScale) * e;
+      redraw();
+      zoomAnimId = requestAnimationFrame(step);
+    }
+    document.body.classList.add('interacting');
+    zoomAnimId = requestAnimationFrame(step);
+  }
+  // Override the +/− button onclick to use smoothZoom
+  const zIn  = document.getElementById('z-in');
+  const zOut = document.getElementById('z-out');
+  if (zIn)  zIn.onclick  = () => smoothZoom(1.7, 260);
+  if (zOut) zOut.onclick = () => smoothZoom(1/1.7, 260);
+
+  // === 3. Double-tap to zoom in (Maps-app classic) ===
+  // svg might not exist yet; query lazily
+  function attachDoubletapZoom(){
+    const svg = document.getElementById('map');
+    if (!svg) return;
+    let lastTapTime = 0;
+    let lastTapX = 0, lastTapY = 0;
+    svg.addEventListener('pointerdown', e => {
+      if (e.pointerType !== 'touch' && e.pointerType !== 'pen') return;
+      // Marker double-tap handled by single-tap pin selection; ignore on markers
+      if (e.target.closest('.marker')) return;
+      const now = performance.now();
+      const dx = Math.abs(e.clientX - lastTapX);
+      const dy = Math.abs(e.clientY - lastTapY);
+      if (now - lastTapTime < 320 && dx < 30 && dy < 30) {
+        // Double-tap detected → zoom in 1.8× toward tap point
+        const rect = svg.getBoundingClientRect();
+        const sx = (e.clientX - rect.left) * (1000 / rect.width);
+        const sy = (e.clientY - rect.top)  * (560  / rect.height);
+        try {
+          const inv = projection.invert && projection.invert([sx, sy]);
+          if (inv) {
+            view.rotate[0] = -inv[0];
+            view.rotate[1] = -inv[1];
+          }
+        } catch(_) {}
+        smoothZoom(1.8, 300);
+        lastTapTime = 0;
+      } else {
+        lastTapTime = now;
+        lastTapX = e.clientX;
+        lastTapY = e.clientY;
+      }
+    });
+    // Two-finger tap → zoom out 1.8×
+    let twoFingerTapId = null;
+    svg.addEventListener('pointerdown', e => {
+      if (pointers.size === 2 && !twoFingerTapId) {
+        twoFingerTapId = setTimeout(() => { twoFingerTapId = null; }, 250);
+      }
+    });
+    svg.addEventListener('pointerup', e => {
+      if (pointers.size === 1 && twoFingerTapId) {
+        clearTimeout(twoFingerTapId);
+        twoFingerTapId = null;
+        smoothZoom(1/1.8, 280);
+      }
+    });
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', attachDoubletapZoom);
+  } else {
+    attachDoubletapZoom();
+  }
 })();
 </script>
 </body>
