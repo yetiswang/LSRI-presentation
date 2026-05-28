@@ -363,30 +363,31 @@ footer .leg .circ{ border:1px solid var(--ink-3); border-radius:50%; }
     padding: 14px 16px 12px;
     gap: 10px;
   }
-  .brand h1 { font-size: 22px; line-height: 1.2; }
+  .brand h1 { font-size: 24px; line-height: 1.2; font-weight: 600; }
   .brand .eyebrow { font-size: 10px; }
   .counts {
     width: 100%;
     gap: 14px;
     flex-wrap: wrap;
   }
-  .counts .n { font-size: 18px; }
-  .counts .lbl { font-size: 10px; }
+  .counts .n { font-size: 22px; font-weight: 600; }
+  .counts .lbl { font-size: 11px; letter-spacing: 0.16em; }
   /* Sidebars become full-width overlay sheets */
   aside.left, aside.right {
     position: fixed;
     top: 0;
     height: 100dvh;
-    width: 86vw;
-    max-width: 360px;
+    width: 88vw;
+    max-width: 400px;
     z-index: 100;
     background: var(--bg);
     border: 0;
     box-shadow: 0 0 60px rgba(0,0,0,0.7);
     transition: transform .25s ease;
-    padding: 16px 18px 24px;
+    padding: 22px 22px 32px;
     max-height: 100dvh;
     overflow-y: auto;
+    font-size: 16px;  /* base body text inside drawer — was browser default */
   }
   aside.left {
     left: 0;
@@ -453,24 +454,26 @@ footer .leg .circ{ border:1px solid var(--ink-3); border-radius:50%; }
     margin-left: 2px;
   }
   /* Bigger touch targets + readable type in sidebars */
-  .section-h { font-size: 11px; margin: 18px 0 10px; }
+  .section-h { font-size: 14px; font-weight: 600; margin: 22px 0 12px; letter-spacing: 0.18em; color: var(--ink-2); }
   .chip {
-    padding: 11px 12px;
-    font-size: 14px;
-    min-height: 44px;
-    gap: 12px;
+    padding: 14px 14px;
+    font-size: 16px;
+    min-height: 52px;
+    gap: 14px;
+    border-radius: 6px;
   }
-  .chip .dot { width: 10px; height: 10px; }
-  .chip .n { font-size: 12px; }
-  .legend-row { font-size: 13px; padding: 7px 0; }
+  .chip .dot { width: 12px; height: 12px; }
+  .chip .n { font-size: 14px; font-weight: 500; }
+  .legend-row { font-size: 15px; padding: 10px 0; gap: 14px; }
   .reset-btn {
-    padding: 11px 12px;
-    font-size: 12px;
-    min-height: 44px;
+    padding: 14px 14px;
+    font-size: 14px;
+    min-height: 50px;
+    letter-spacing: 0.14em;
   }
-  .list-item { padding: 12px 4px; min-height: 56px; }
-  .list-item .lname { font-size: 14px; }
-  .list-item .lmeta, .list-item .lcountry { font-size: 11px; }
+  .list-item { padding: 16px 6px; min-height: 64px; gap: 14px; }
+  .list-item .lname { font-size: 16px; line-height: 1.3; font-weight: 600; }
+  .list-item .lmeta, .list-item .lcountry { font-size: 13px; margin-top: 3px; }
   /* Map takes full viewport between header and footer */
   .map-wrap { min-height: calc(100dvh - 140px); }
   /* Zoom controls + region nav: slightly larger touch targets */
@@ -532,10 +535,10 @@ footer .leg .circ{ border:1px solid var(--ink-3); border-radius:50%; }
 
 /* Phone narrow: ≤480px */
 @media (max-width: 480px) {
-  .brand h1 { font-size: 19px; }
+  .brand h1 { font-size: 22px; }
   .brand h1 .dim { display: none; }
   .counts { gap: 10px; }
-  .counts .n { font-size: 16px; }
+  .counts .n { font-size: 20px; }
   header.top { padding: 12px 14px 10px; gap: 8px; }
   /* Drawer fills more of the screen */
   aside.left, aside.right { width: 92vw; max-width: none; }
@@ -781,7 +784,7 @@ window.SDL_CATEGORIES = {
       <div class="chips" data-group="charact"></div>
     </aside>
 
-    <footer class="bot">
+    <footer class="bot"><span style="font-size:9px;color:var(--ink-3);letter-spacing:0.15em;">build mobile-v2-2026-05-28</span> · 
       <div>DiscoveryLabNL \u00B7 Landscape Matrix v.04.2026</div>
     </footer>
   `;
@@ -1455,6 +1458,69 @@ window.SDL_CATEGORIES = {
   document.addEventListener('click', (e) => {
     if (e.target.closest('.chip')) setTimeout(updateBadge, 50);
   });
+})();
+
+
+
+/* ============ TOUCH GESTURES (added 2026-05-28) ============ */
+(function setupTouchGestures(){
+  if (window.matchMedia('(min-width: 901px)').matches) return;  // desktop only
+  const body = document.body;
+  const left = document.querySelector('aside.left');
+  const right = document.querySelector('aside.right');
+  if (!left || !right) return;
+
+  const EDGE_PX = 28;          // px from edge to detect open-from-edge swipe
+  const MIN_DIST = 40;         // px minimum swipe distance to trigger
+  const MAX_OFF_AXIS = 50;     // max vertical drift allowed
+  const EDGE_HEIGHT_RATIO = 0.85;  // only top 85% of screen detects edge-swipes (avoid footer)
+
+  let startX = null, startY = null, startEdge = null;
+
+  function handleStart(e){
+    if (e.touches.length !== 1) return;
+    const t = e.touches[0];
+    startX = t.clientX;
+    startY = t.clientY;
+    const fromLeftEdge = t.clientX < EDGE_PX;
+    const fromRightEdge = t.clientX > window.innerWidth - EDGE_PX;
+    const inUpperBand = t.clientY < window.innerHeight * EDGE_HEIGHT_RATIO;
+    if (fromLeftEdge && inUpperBand) startEdge = 'left';
+    else if (fromRightEdge && inUpperBand) startEdge = 'right';
+    else startEdge = null;
+  }
+  function handleEnd(e){
+    if (startX === null) return;
+    const t = (e.changedTouches && e.changedTouches[0]);
+    if (!t) { startX = null; return; }
+    const dx = t.clientX - startX;
+    const dy = t.clientY - startY;
+    const absDx = Math.abs(dx), absDy = Math.abs(dy);
+    if (absDy > MAX_OFF_AXIS || absDx < MIN_DIST) { startX = null; return; }
+
+    // Swipe from left edge to the right: open Filters
+    if (startEdge === 'left' && dx > 0) {
+      document.getElementById('mob-filters')?.click();
+    }
+    // Swipe from right edge to the left: open Selected
+    else if (startEdge === 'right' && dx < 0) {
+      document.getElementById('mob-selected')?.click();
+    }
+    // Swipe LEFT while left drawer is open: close it
+    else if (left.classList.contains('open') && dx < 0) {
+      left.classList.remove('open');
+      body.classList.remove('drawer-open');
+    }
+    // Swipe RIGHT while right drawer is open: close it
+    else if (right.classList.contains('open') && dx > 0) {
+      right.classList.remove('open');
+      body.classList.remove('drawer-open');
+    }
+    startX = null;
+  }
+  // Use pointerdown/pointerup for unified mouse+touch (but mostly touch)
+  document.addEventListener('touchstart', handleStart, { passive: true });
+  document.addEventListener('touchend', handleEnd, { passive: true });
 })();
 
 </script>
