@@ -531,6 +531,24 @@ footer .leg .circ{ border:1px solid var(--ink-3); border-radius:50%; }
   footer .leg { flex-wrap: wrap; gap: 12px; }
   /* Marker labels: hide on mobile to reduce clutter */
   .marker-label { display: none; }
+
+  /* SVG country labels: bigger on mobile (default 7-8.5px is unreadable) */
+  .country-label[data-tier="1"]{ font-size: 14px !important; letter-spacing: 0.12em; }
+  .country-label[data-tier="2"]{ font-size: 12px !important; }
+  .country-label[data-tier="3"]{ font-size: 11px !important; }
+  /* Region nav: bigger touch targets */
+  .region-nav { top: 220px; }
+  .region-nav button {
+    padding: 12px 14px;
+    font-size: 13px;
+    min-height: 44px;
+  }
+  /* Zoom controls: even bigger touch targets */
+  .zoom-ctl button { width: 48px; height: 48px; font-size: 26px; }
+  .zoom-ctl #z-reset { font-size: 22px; }
+  /* Header counts: scroll horizontally if too many, larger font */
+  .counts { overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
+  .counts > div { flex-shrink: 0; }
 }
 
 /* Phone narrow: ≤480px */
@@ -784,7 +802,7 @@ window.SDL_CATEGORIES = {
       <div class="chips" data-group="charact"></div>
     </aside>
 
-    <footer class="bot"><span style="font-size:9px;color:var(--ink-3);letter-spacing:0.15em;">build mobile-v2-2026-05-28</span> · 
+    <footer class="bot"><span style="font-size:9px;color:var(--ink-3);letter-spacing:0.15em;">build mobile-v3-2026-05-28-pinch</span> · 
       <div>DiscoveryLabNL \u00B7 Landscape Matrix v.04.2026</div>
     </footer>
   `;
@@ -1266,16 +1284,47 @@ window.SDL_CATEGORIES = {
     redraw();
   }
 
-  // Drag to rotate
+  // Drag to rotate + pinch to zoom (multi-pointer)
   let dragging = null;
+  const pointers = new Map();   // pointerId -> {x, y}
+  let pinchStart = null;        // {dist, viewScale} when 2 fingers active
+
+  function pinchDist(){
+    if (pointers.size < 2) return 0;
+    const arr = [...pointers.values()];
+    const [a, b] = [arr[0], arr[1]];
+    return Math.hypot(b.x - a.x, b.y - a.y);
+  }
   svg.addEventListener('pointerdown', (e) => {
     if(e.target.closest('.marker')) return;
-    dragging = { x: e.clientX, y: e.clientY, r: [...view.rotate] };
-    svg.setPointerCapture(e.pointerId);
-    svg.style.cursor = 'grabbing';
-    zHint.classList.add('fade');
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.size === 2) {
+      // Two-finger pinch starts
+      pinchStart = { dist: pinchDist(), viewScale: view.scale };
+      dragging = null;
+      svg.style.cursor = 'grab';
+      return;
+    }
+    if (pointers.size === 1) {
+      dragging = { x: e.clientX, y: e.clientY, r: [...view.rotate] };
+      try { svg.setPointerCapture(e.pointerId); } catch(_) {}
+      svg.style.cursor = 'grabbing';
+      zHint.classList.add('fade');
+    }
   });
   svg.addEventListener('pointermove', (e) => {
+    if (pointers.has(e.pointerId)) {
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    }
+    if (pointers.size >= 2 && pinchStart) {
+      // Pinch zoom
+      const d = pinchDist();
+      if (d > 0 && pinchStart.dist > 0) {
+        view.scale = clampScale(pinchStart.viewScale * (d / pinchStart.dist));
+        redraw();
+      }
+      return;
+    }
     if(!dragging) return;
     const rect = svg.getBoundingClientRect();
     const dx = (e.clientX - dragging.x) * (1000 / rect.width);
@@ -1287,8 +1336,10 @@ window.SDL_CATEGORIES = {
     redraw();
   });
   function endDrag(e){
+    pointers.delete(e.pointerId);
+    if (pointers.size < 2) pinchStart = null;
     if(!dragging) return;
-    dragging = null;
+    if (pointers.size === 0) dragging = null;
     svg.style.cursor = 'grab';
     try{ svg.releasePointerCapture(e.pointerId); }catch(_){}
   }
