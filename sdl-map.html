@@ -709,7 +709,7 @@ footer .leg .circ{ border:1px solid var(--ink-3); border-radius:50%; }
   footer.bot { display: none; }
   /* But keep a build version readable in the title bar bottom corner */
   header.top::after {
-    content: 'mobile-v14-sheet-z';
+    content: 'mobile-v15-async-fix';
     position: absolute;
     bottom: 2px;
     right: 8px;
@@ -1982,8 +1982,22 @@ function redraw(){
 
 
 
-/* ============ MAPS-APP BOTTOM SHEET (mobile v11) ============ */
-(function setupBottomSheet(){
+/* ============ MAPS-APP BOTTOM SHEET (mobile v11+v15) ============ */
+// Retry until the async innerHTML render has placed the sheet div in DOM.
+// (Earlier v11 ran synchronously before the async init completed, found null,
+//  and silently early-returned — leaving window.__sheet undefined.)
+(function waitForSheet(tries){
+  const sheet = document.getElementById('sdl-sheet');
+  const body = document.getElementById('sheet-body');
+  if (!sheet || !body) {
+    if (tries < 50) setTimeout(() => waitForSheet(tries + 1), 60);
+    else console.warn('[bc-mobile] sheet element never appeared');
+    return;
+  }
+  setupBottomSheet();
+})(0);
+
+function setupBottomSheet(){
   const sheet = document.getElementById('sdl-sheet');
   const body = document.getElementById('sheet-body');
   const closeBtn = document.getElementById('sheet-close');
@@ -2013,6 +2027,7 @@ function redraw(){
       <div class="sheet-row"><span class="k">Scale</span><span class="v">${d.scale || '—'}</span></div>
       <div class="sheet-row"><span class="k">Investment</span><span class="v">${d.investLabel || '—'}</span></div>
     `;
+    sheet.style.transform = '';   // clear any stuck inline transform from prior swipe
     sheet.classList.add('open');
     document.body.classList.add('sheet-open');
     // Mark the selected marker
@@ -2074,7 +2089,8 @@ function redraw(){
   }
   // Expose for debugging
   window.__sheet = { openSheet, closeSheet };
-})();
+  console.log('[bc-mobile] setupBottomSheet ready, window.__sheet set');
+}
 
 
 /* ============ MOBILE v12 — defensive button bindings + smooth zoom ============ */
