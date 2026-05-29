@@ -202,14 +202,20 @@ aside.left{ grid-area:left; }
 }
 .marker.hl .core{ filter: brightness(1.4); }
 .marker.hl .ring{ opacity:0.8; stroke-width:1.5; }
-.marker.hl .pulse{
-  fill:none; stroke:currentColor; stroke-width:1.5;
+.marker.hl .pulse,
+.marker.selected .pulse {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5px;
+  /* base r set in JS at init (r=6) since not all browsers honour 'r' CSS prop */
+  transform-origin: 0 0;        /* SVG circles default to cx=0,cy=0 */
+  transform-box: fill-box;
   animation: pulse 1.8s ease-out infinite;
-  transform-origin: center;
+  will-change: transform, opacity;
 }
-@keyframes pulse{
-  0%   { r: 6;  opacity:0.8; stroke-width:2; }
-  100% { r: 28; opacity:0;   stroke-width:0.5; }
+@keyframes pulse {
+  0%   { transform: scale(1);    opacity: 0.85; }
+  100% { transform: scale(4.7);  opacity: 0;    }
 }
 
 .marker-label{
@@ -709,7 +715,7 @@ footer .leg .circ{ border:1px solid var(--ink-3); border-radius:50%; }
   footer.bot { display: none; }
   /* But keep a build version readable in the title bar bottom corner */
   header.top::after {
-    content: 'mobile-v30-selected-glow';
+    content: 'mobile-v31-ios-pulse';
     position: absolute;
     bottom: 2px;
     right: 8px;
@@ -1663,6 +1669,7 @@ window.SDL_CATEGORIES = {
 
     const pulse = document.createElementNS(ns,'circle');
     pulse.setAttribute('class','pulse');
+    pulse.setAttribute('r', '6');   // v31: base radius set as SVG attr (iOS reliable)
     inner.appendChild(pulse);
 
     // Transparent hit-area circle for touch — gives every pin a ≥22 px tap target
