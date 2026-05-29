@@ -709,7 +709,7 @@ footer .leg .circ{ border:1px solid var(--ink-3); border-radius:50%; }
   footer.bot { display: none; }
   /* But keep a build version readable in the title bar bottom corner */
   header.top::after {
-    content: 'mobile-v25-tokens';
+    content: 'mobile-v26-pin-size';
     position: absolute;
     bottom: 2px;
     right: 8px;
@@ -1657,7 +1657,7 @@ window.SDL_CATEGORIES = {
     // regardless of how small its visual radius is. Pointer events on parent <g>.
     const hit = document.createElementNS(ns,'circle');
     hit.setAttribute('class','hit');
-    hit.setAttribute('r', Math.max(investRadius(d.invest) + 2.5, 60));  // v24: larger touch target
+    hit.setAttribute('r', Math.max(investRadius(d.invest) + 2.5, 28));  // v26: not so large it blocks drag
     hit.setAttribute('fill', 'transparent');
     hit.setAttribute('pointer-events', 'all');
     inner.appendChild(hit);
@@ -1682,7 +1682,7 @@ window.SDL_CATEGORIES = {
 
     // v24: SDL name label — appears at high zoom only. Append to gLabels (z-order on top).
     const mLabel = document.createElementNS(ns,'text');
-    mLabel.setAttribute('class','marker-label sdl-label');
+    mLabel.setAttribute('class','sdl-label');
     mLabel.setAttribute('text-anchor','middle');
     mLabel.style.display = 'none';
     mLabel.textContent = d.name;
@@ -2002,8 +2002,12 @@ function redraw(){
     // Step 2: anti-overlap pass — push apart clustered markers
     // (Runs at any zoom; the separation distance scales with marker size.)
     const baseR = 8;   // SVG units — typical marker visual radius
-    const zoomGrowth = Math.min(2.5, Math.sqrt(k));  // visual size factor: 1x at k=1, ~2.5x at k=6+
-    const separation = baseR * 2.4 * zoomGrowth;
+    // v26: growth=1.0 at the default starting zoom (k≈5.5), grows only when user zooms in further.
+    // Previously sqrt(k) gave 2.34× pins at default — way too big, hit areas blocked drag.
+    const k0 = view.scale / BASE_SCALE / 5.5;   // normalized: 1.0 at default, 2.0 at 2× default
+    const zoomGrowth = Math.max(1.0, Math.min(2.0, Math.sqrt(k / 5.5) + 0.3));
+    // v26: only do real anti-overlap above default zoom; at default we trust the projection
+    const separation = baseR * 1.6 * zoomGrowth;
     for (let pass = 0; pass < 4; pass++) {
       for (let i = 0; i < _visible.length; i++) {
         const a = _visible[i];
@@ -2044,7 +2048,7 @@ function redraw(){
       d._el.querySelector('.m-inner').removeAttribute('transform');
       if (d._label) {
         if (showLabels && !isDim) {
-          d._label.style.display = '';
+          d._label.style.display = 'inline';
           d._label.setAttribute('x', x);
           d._label.setAttribute('y', y + 12 * zoomGrowth + 8);  // below marker
           d._label.style.opacity = limbFade;
