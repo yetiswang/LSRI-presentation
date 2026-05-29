@@ -720,18 +720,27 @@ footer .ident a.author:hover { color: var(--ink); border-bottom-color: var(--ink
   }
   /* Hide the textual zoom hint on mobile */
   .zoom-hint { display: none !important; }
-  /* v39: unified identity across desktop + mobile.
-     Footer stays visible on mobile, just compacted; build-version marker
-     dropped — the deployed commit hash is what matters for cache verification
-     (git log) and the user shouldn't see version cruft in production. */
+  /* v41: unified identity, fixed mobile cascade + safe-area handling.
+     Earlier mobile block (line ~538) sets flex-direction:column +
+     align-items:flex-start + text-align:left. We override all three
+     here so the identity strip centers properly. Safe-area-inset-bottom
+     pulls it above the iPhone home indicator. */
   footer.bot {
-    display: flex; justify-content: center;
-    padding: 6px 12px;
-    font-size: 9px;
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: center !important;
+    align-items: center !important;
+    text-align: center !important;
+    padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px)) !important;
+    font-size: 10px;
+    line-height: 1.3;
+    gap: 6px;
     border-top: 1px solid var(--rule);
     background: var(--bg);
+    z-index: 5;   /* above any stray fixed content but below sheet (105) */
   }
-  footer.bot .ident { gap: 6px; justify-content: center; text-align: center; }
+  footer.bot .ident { gap: 6px; justify-content: center; text-align: center; flex-wrap: wrap; }
+  footer.bot .ident .sep { display: none; }   /* compact: drop the · separator on mobile */
   /* v39: build-version pseudo-element removed entirely (no UI cruft in prod) */
   header.top::after { display: none; }
   /* Filter callout: out of the way */
@@ -1417,7 +1426,7 @@ window.SDL_CATEGORIES = {
     <button class="mob-toggle mob-only left" id="mob-filters" aria-label="Open filters">☰</button>
     <button class="mob-toggle mob-only right" id="mob-selected" aria-label="Open selected list">★<span class="badge" id="mob-selected-n">0</span></button>
       <div class="brand">
-        <div class="eyebrow">Landscape Scan \u00B7 compiled Apr 2026</div>
+        <div class="eyebrow">DiscoveryLabNL \u00B7 live tracker</div>
         <h1>Global Self-Driving Lab <span class="dim">Landscape</span></h1>
       </div>
       <div class="counts">
