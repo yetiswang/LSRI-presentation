@@ -709,7 +709,7 @@ footer .leg .circ{ border:1px solid var(--ink-3); border-radius:50%; }
   footer.bot { display: none; }
   /* But keep a build version readable in the title bar bottom corner */
   header.top::after {
-    content: 'mobile-v26-pin-size';
+    content: 'mobile-v27-pin-drag';
     position: absolute;
     bottom: 2px;
     right: 8px;
@@ -2180,13 +2180,17 @@ function redraw(){
     const [a, b] = [arr[0], arr[1]];
     return Math.hypot(b.x - a.x, b.y - a.y);
   }
+  // v27: pointer state pre-arms on touch start; drag/pinch only commits after
+  // movement crosses a threshold. Lets fingers land on pins without blocking drag,
+  // and lets the browser fire 'click' naturally for taps that don't move enough.
+  const DRAG_THRESHOLD_PX = 8;
   svg.addEventListener('pointerdown', (e) => {
-    if(e.target.closest('.marker')) return;
-    cancelInertia();                 // any tap on map cancels in-flight inertia
-    velSamples = [];                 // reset velocity window for new gesture
-    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    cancelInertia();                 // any touch cancels in-flight inertia
+    velSamples = [];
+    // Always record this pointer's start position
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, startX: e.clientX, startY: e.clientY, captured: false });
     if (pointers.size === 2) {
-      // Two-finger pinch starts
+      // Two-finger touch: arm pinch state right away (pinch IS the gesture, no threshold needed)
       pinchStart = { dist: pinchDist(), viewScale: view.scale };
       dragging = null;
       svg.style.cursor = 'grab';
@@ -2194,16 +2198,20 @@ function redraw(){
       return;
     }
     if (pointers.size === 1) {
-      dragging = { x: e.clientX, y: e.clientY, r: [...view.rotate] };
-      try { svg.setPointerCapture(e.pointerId); } catch(_) {}
-      svg.style.cursor = 'grabbing';
-      zHint.classList.add('fade');
-      document.body.classList.add('interacting');
+      // Pre-arm drag but DO NOT capture pointer yet — capture only after movement.
+      // This way, a quick tap on a pin lets the browser fire a click event normally.
+      dragging = { x: e.clientX, y: e.clientY, r: [...view.rotate], pending: true };
     }
   });
   svg.addEventListener('pointermove', (e) => {
     if (pointers.has(e.pointerId)) {
-      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      // Preserve startX/startY/captured from pointerdown
+      const existing = pointers.get(e.pointerId);
+      pointers.set(e.pointerId, {
+        x: e.clientX, y: e.clientY,
+        startX: existing.startX, startY: existing.startY,
+        captured: existing.captured
+      });
     }
     if (pointers.size >= 2 && pinchStart) {
       // Pinch zoom
@@ -2215,6 +2223,21 @@ function redraw(){
       return;
     }
     if(!dragging) return;
+
+    // v27: commit to drag only if pointer has moved past threshold
+    if (dragging.pending) {
+      const dx0 = e.clientX - dragging.x;
+      const dy0 = e.clientY - dragging.y;
+      if (Math.hypot(dx0, dy0) < DRAG_THRESHOLD_PX) {
+        return;   // still under threshold — don't drag, allow click to fire later
+      }
+      // Movement exceeded threshold → commit to drag now
+      dragging.pending = false;
+      try { svg.setPointerCapture(e.pointerId); } catch(_) {}
+      svg.style.cursor = 'grabbing';
+      zHint.classList.add('fade');
+      document.body.classList.add('interacting');
+    }
     const rect = svg.getBoundingClientRect();
     const dx = (e.clientX - dragging.x) * (1000 / rect.width);
     const dy = (e.clientY - dragging.y) * (560 / rect.height);
