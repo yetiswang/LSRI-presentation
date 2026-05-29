@@ -709,7 +709,7 @@ footer .leg .circ{ border:1px solid var(--ink-3); border-radius:50%; }
   footer.bot { display: none; }
   /* But keep a build version readable in the title bar bottom corner */
   header.top::after {
-    content: 'mobile-v27-pin-drag';
+    content: 'mobile-v28-labels-fix';
     position: absolute;
     bottom: 2px;
     right: 8px;
@@ -2162,6 +2162,7 @@ function redraw(){
       if (sp < INERTIA_MIN) {
         cancelInertia();
         document.body.classList.remove('interacting');
+        redrawRaf();   // v28: redraw to update SDL labels visibility
         return;
       }
       inertiaRafId = requestAnimationFrame(step);
@@ -2284,6 +2285,7 @@ function redraw(){
       if (!releaseVel || Math.hypot(releaseVel.vx, releaseVel.vy) < INERTIA_MIN * 4) {
         // v22: canvas is fast enough; simple immediate class removal works
         document.body.classList.remove('interacting');
+        redrawRaf();   // v28: force redraw so SDL labels become visible again
       } else {
         startInertia(releaseVel.vx, releaseVel.vy);
       }
@@ -2723,8 +2725,8 @@ function setupBottomSheet(){
       const t = (performance.now() - t0) / durationMs;
       if (t >= 1) {
         view.scale = targetScale;
-        redraw();
         document.body.classList.remove('interacting');
+        redraw();   // redraw AFTER removing class so labels update with showLabels=true
         zoomAnimId = null;
         return;
       }
@@ -2876,6 +2878,23 @@ function prewarmInteracting(){
     if (now - lastTap < 320) e.preventDefault();
     lastTap = now;
   }, { passive: false });
+})();
+
+
+/* v28: ensure SDL labels reflect current zoom state. When body.interacting
+   flips from on→off via any code path, schedule one extra redraw. */
+(function ensureLabelsAfterInteraction(){
+  let lastState = document.body.classList.contains('interacting');
+  const observer = new MutationObserver(() => {
+    const now = document.body.classList.contains('interacting');
+    if (lastState && !now) {
+      // transitioned off — force redraw
+      if (typeof redrawRaf === 'function') redrawRaf();
+      else if (window.redrawRaf) window.redrawRaf();
+    }
+    lastState = now;
+  });
+  observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
 })();
 </script>
 </body>
