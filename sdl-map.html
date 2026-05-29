@@ -709,7 +709,7 @@ footer .leg .circ{ border:1px solid var(--ink-3); border-radius:50%; }
   footer.bot { display: none; }
   /* But keep a build version readable in the title bar bottom corner */
   header.top::after {
-    content: 'mobile-v29-label-size';
+    content: 'mobile-v30-selected-glow';
     position: absolute;
     bottom: 2px;
     right: 8px;
@@ -836,14 +836,23 @@ body.interacting .land { opacity: 0.92; }
     transform: translateY(-72vh);
     transition: transform 0.32s cubic-bezier(0.4, 0.0, 0.2, 1);
   }
-  /* Selected pin highlight: brighter ring + pulse */
+  /* Selected pin highlight: brighter ring + glow + pulse (matches desktop .hl) */
+  .marker.selected {
+    filter: drop-shadow(0 0 6px currentColor) drop-shadow(0 0 14px currentColor);
+  }
   .marker.selected .ring {
     opacity: 1;
-    stroke-width: 2;
-    stroke: var(--accent);
+    stroke-width: 1.8;
   }
   .marker.selected .core {
-    filter: brightness(1.6);
+    filter: brightness(1.5);
+  }
+  .marker.selected .pulse {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    animation: pulse 1.8s ease-out infinite;
+    transform-origin: center;
   }
 }
 
