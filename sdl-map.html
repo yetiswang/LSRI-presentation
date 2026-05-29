@@ -198,7 +198,12 @@ aside.left{ grid-area:left; }
 .marker.dim .core{ r:2; }
 
 .marker.hl{
-  filter: drop-shadow(0 0 6px currentColor) drop-shadow(0 0 12px currentColor);
+  /* v34: SVG-native filter for iOS reliability. The CSS drop-shadow path
+     stopped rendering on iOS once .pulse got GPU-promoted by its animation —
+     iOS WebKit detaches the parent <g>'s filter when a descendant becomes
+     a compositing layer. Filter primitives inside an SVG <filter> element
+     survive that. */
+  filter: url(#pinGlow);
 }
 .marker.hl .core{ filter: brightness(1.4); }
 .marker.hl .ring{ opacity:0.8; stroke-width:1.5; }
@@ -214,8 +219,8 @@ aside.left{ grid-area:left; }
   will-change: transform, opacity;
 }
 @keyframes pulse {
-  0%   { transform: translateZ(0) scale(1);   opacity: 0.85; }
-  100% { transform: translateZ(0) scale(4.7); opacity: 0;    }
+  0%   { transform: scale(1);   opacity: 0.85; }
+  100% { transform: scale(4.7); opacity: 0;    }
 }
 
 .marker-label{
@@ -715,7 +720,7 @@ footer .leg .circ{ border:1px solid var(--ink-3); border-radius:50%; }
   footer.bot { display: none; }
   /* But keep a build version readable in the title bar bottom corner */
   header.top::after {
-    content: 'mobile-v33-ios-pulse-origin';
+    content: 'mobile-v34-ios-glow';
     position: absolute;
     bottom: 2px;
     right: 8px;
@@ -844,7 +849,7 @@ body.interacting .land { opacity: 0.92; }
   }
   /* Selected pin highlight: brighter ring + glow + pulse (matches desktop .hl) */
   .marker.selected {
-    filter: drop-shadow(0 0 6px currentColor) drop-shadow(0 0 14px currentColor);
+    filter: url(#pinGlow);
   }
   .marker.selected .ring {
     opacity: 1;
@@ -1517,6 +1522,12 @@ window.SDL_CATEGORIES = {
     '</radialGradient>'+
     '<filter id="atmosphere" x="-20%" y="-20%" width="140%" height="140%">'+
     '<feGaussianBlur stdDeviation="6"/>'+
+    '</filter>'+
+    // v34 pin glow — SVG-native filter (iOS-reliable; CSS drop-shadow breaks
+    // on iOS when child <circle class="pulse"> is GPU-promoted by its animation)
+    '<filter id="pinGlow" x="-300%" y="-300%" width="700%" height="700%">'+
+    '<feDropShadow dx="0" dy="0" stdDeviation="2" flood-color="currentColor" flood-opacity="0.95"/>'+
+    '<feDropShadow dx="0" dy="0" stdDeviation="5" flood-color="currentColor" flood-opacity="0.65"/>'+
     '</filter>';
   svg.appendChild(defs);
 
