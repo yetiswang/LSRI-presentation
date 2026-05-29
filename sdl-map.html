@@ -709,7 +709,7 @@ footer .leg .circ{ border:1px solid var(--ink-3); border-radius:50%; }
   footer.bot { display: none; }
   /* But keep a build version readable in the title bar bottom corner */
   header.top::after {
-    content: 'mobile-v28-labels-fix';
+    content: 'mobile-v29-label-size';
     position: absolute;
     bottom: 2px;
     right: 8px;
@@ -898,18 +898,21 @@ aside.left, aside.right, .sheet, .sheet-body {
 /* v24: SDL name labels at high zoom (added per-marker on init, shown when k >= 3.0) */
 .sdl-label {
   font-family: var(--font-sans);
-  font-weight: 500;
-  font-size: 12px;
+  font-weight: 600;
+  font-size: 15px;   /* v29: base size — actual rendered size set by JS to scale with zoom */
   fill: var(--ink);
-  text-shadow: 0 0 6px var(--bg), 0 0 4px var(--bg), 0 0 2px var(--bg);
+  /* paint-order:stroke gives a crisp halo so label stays readable over land + ocean */
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+  stroke-linecap: round;
   pointer-events: none;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.005em;
 }
 @media (max-width: 900px) {
-  /* On mobile, hide the marker-label rule that was hiding ALL .marker-label nodes.
-     The sdl-label sub-class needs to be visible at high zoom. */
   .marker-label:not(.sdl-label) { display: none; }
-  .sdl-label { font-size: 13px; font-weight: 600; }
+  .sdl-label { font-weight: 700; stroke-width: 5px; }
 }
 body.interacting .sdl-label { visibility: hidden; }
 
@@ -2048,9 +2051,12 @@ function redraw(){
       d._el.querySelector('.m-inner').removeAttribute('transform');
       if (d._label) {
         if (showLabels && !isDim) {
+          // v29: scale font size with zoom — base 15 at default, up to 28 at 2× zoom
+          const labelSize = Math.min(28, Math.max(15, 15 * zoomGrowth));
           d._label.style.display = 'inline';
           d._label.setAttribute('x', x);
-          d._label.setAttribute('y', y + 12 * zoomGrowth + 8);  // below marker
+          d._label.setAttribute('y', y + 10 * zoomGrowth + labelSize * 0.9);
+          d._label.setAttribute('font-size', labelSize + 'px');
           d._label.style.opacity = limbFade;
         } else {
           d._label.style.display = 'none';
