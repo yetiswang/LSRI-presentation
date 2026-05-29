@@ -709,7 +709,7 @@ footer .leg .circ{ border:1px solid var(--ink-3); border-radius:50%; }
   footer.bot { display: none; }
   /* But keep a build version readable in the title bar bottom corner */
   header.top::after {
-    content: 'mobile-v23-locked';
+    content: 'mobile-v24-pins';
     position: absolute;
     bottom: 2px;
     right: 8px;
@@ -893,6 +893,25 @@ aside.left, aside.right, .sheet, .sheet-body {
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
 }
+
+
+/* v24: SDL name labels at high zoom (added per-marker on init, shown when k >= 3.0) */
+.sdl-label {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 12px;
+  fill: var(--ink);
+  text-shadow: 0 0 6px var(--bg), 0 0 4px var(--bg), 0 0 2px var(--bg);
+  pointer-events: none;
+  letter-spacing: 0.01em;
+}
+@media (max-width: 900px) {
+  /* On mobile, hide the marker-label rule that was hiding ALL .marker-label nodes.
+     The sdl-label sub-class needs to be visible at high zoom. */
+  .marker-label:not(.sdl-label) { display: none; }
+  .sdl-label { font-size: 13px; font-weight: 600; }
+}
+body.interacting .sdl-label { visibility: hidden; }
 
 </style>
 </head>
@@ -1392,7 +1411,7 @@ window.SDL_CATEGORIES = {
     // regardless of how small its visual radius is. Pointer events on parent <g>.
     const hit = document.createElementNS(ns,'circle');
     hit.setAttribute('class','hit');
-    hit.setAttribute('r', Math.max(investRadius(d.invest) + 2.5, 22));
+    hit.setAttribute('r', Math.max(investRadius(d.invest) + 2.5, 60));  // v24: larger touch target
     hit.setAttribute('fill', 'transparent');
     hit.setAttribute('pointer-events', 'all');
     inner.appendChild(hit);
@@ -1414,6 +1433,15 @@ window.SDL_CATEGORIES = {
     g.addEventListener('mouseleave', () => hideTip());
     // Click on marker = pin the tip; also handles mobile tap (mouseleave never fires on touch)
     g.addEventListener('click', e => { showTip(d, e); /* no stopPropagation — let document-level sheet handler also fire */ });
+
+    // v24: SDL name label — appears at high zoom only. Append to gLabels (z-order on top).
+    const mLabel = document.createElementNS(ns,'text');
+    mLabel.setAttribute('class','marker-label sdl-label');
+    mLabel.setAttribute('text-anchor','middle');
+    mLabel.style.display = 'none';
+    mLabel.textContent = d.name;
+    d._label = mLabel;
+    gLabels.appendChild(mLabel);
 
     gMarkers.appendChild(g);
   });
@@ -1708,23 +1736,75 @@ function redraw(){
 
     const center = [-view.rotate[0], -view.rotate[1]];
 
+    // v24 marker pass — projection, zoom-scaled radius, anti-overlap, label visibility
+    // Step 1: project all markers, mark visibility, compute base offsets
+    const _visible = [];
     DATA.forEach(d => {
       const p = projection([d.lon, d.lat]);
       const dist = gcDist(center, [d.lon, d.lat]);
-      const visible = dist < 88 && p;
-      if(visible){
-        const x = p[0] + d._off[0];
-        const y = p[1] + d._off[1];
-        d._el.style.display = '';
-        d._el.setAttribute('transform', 'translate('+x+','+y+')');
-        const limbFade = Math.min(1, Math.max(0, (88 - dist)/20));
-        // Respect dim/hl class — dim markers get much lower opacity
-        const isDim = d._el.classList.contains('dim');
-        d._el.style.opacity = isDim ? limbFade * 0.08 : limbFade;
-        d._x = x; d._y = y;
-        d._el.querySelector('.m-inner').removeAttribute('transform');
+      if (dist < 88 && p) {
+        // Start each frame with the original radial offset (initialised at marker create)
+        d._renderOff = [d._off[0], d._off[1]];
+        d._proj = p;
+        d._dist = dist;
+        _visible.push(d);
       } else {
         d._el.style.display = 'none';
+        if (d._label) d._label.style.display = 'none';
+      }
+    });
+    // Step 2: anti-overlap pass — push apart clustered markers
+    // (Runs at any zoom; the separation distance scales with marker size.)
+    const baseR = 8;   // SVG units — typical marker visual radius
+    const zoomGrowth = Math.min(2.5, Math.sqrt(k));  // visual size factor: 1x at k=1, ~2.5x at k=6+
+    const separation = baseR * 2.4 * zoomGrowth;
+    for (let pass = 0; pass < 4; pass++) {
+      for (let i = 0; i < _visible.length; i++) {
+        const a = _visible[i];
+        const ax = a._proj[0] + a._renderOff[0];
+        const ay = a._proj[1] + a._renderOff[1];
+        for (let j = i + 1; j < _visible.length; j++) {
+          const b = _visible[j];
+          const bx = b._proj[0] + b._renderOff[0];
+          const by = b._proj[1] + b._renderOff[1];
+          const dx = ax - bx;
+          const dy = ay - by;
+          const d2 = dx*dx + dy*dy;
+          const min2 = separation * separation;
+          if (d2 < min2 && d2 > 0.01) {
+            const dist = Math.sqrt(d2);
+            const push = (separation - dist) * 0.5;
+            const ux = dx / dist;
+            const uy = dy / dist;
+            a._renderOff[0] += ux * push;
+            a._renderOff[1] += uy * push;
+            b._renderOff[0] -= ux * push;
+            b._renderOff[1] -= uy * push;
+          }
+        }
+      }
+    }
+    // Step 3: render each visible marker with scaled size + position + label
+    const showLabels = k >= 3.0 && !document.body.classList.contains('interacting');
+    _visible.forEach(d => {
+      const x = d._proj[0] + d._renderOff[0];
+      const y = d._proj[1] + d._renderOff[1];
+      d._el.style.display = '';
+      d._el.setAttribute('transform','translate('+x+','+y+') scale('+zoomGrowth+')');
+      const limbFade = Math.min(1, Math.max(0, (88 - d._dist)/20));
+      const isDim = d._el.classList.contains('dim');
+      d._el.style.opacity = isDim ? limbFade * 0.08 : limbFade;
+      d._x = x; d._y = y;
+      d._el.querySelector('.m-inner').removeAttribute('transform');
+      if (d._label) {
+        if (showLabels && !isDim) {
+          d._label.style.display = '';
+          d._label.setAttribute('x', x);
+          d._label.setAttribute('y', y + 12 * zoomGrowth + 8);  // below marker
+          d._label.style.opacity = limbFade;
+        } else {
+          d._label.style.display = 'none';
+        }
       }
     });
 
