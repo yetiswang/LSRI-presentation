@@ -278,6 +278,10 @@ footer.bot{
 footer .leg{ display:flex; gap:20px; align-items:center; }
 footer .leg .item{ display:flex; gap:6px; align-items:center; }
 footer .leg .circ{ border:1px solid var(--ink-3); border-radius:50%; }
+footer .ident { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+footer .ident .sep { opacity:0.5; }
+footer .ident a.author { color: var(--ink-2); text-decoration:none; border-bottom: 1px dotted var(--ink-3); }
+footer .ident a.author:hover { color: var(--ink); border-bottom-color: var(--ink); border-bottom-style: solid; }
 
 .empty{
   font-family:var(--font-mono); font-size:11px; color:var(--ink-3);
@@ -716,20 +720,20 @@ footer .leg .circ{ border:1px solid var(--ink-3); border-radius:50%; }
   }
   /* Hide the textual zoom hint on mobile */
   .zoom-hint { display: none !important; }
-  /* Hide footer chrome on mobile to keep globe unobstructed */
-  footer.bot { display: none; }
-  /* But keep a build version readable in the title bar bottom corner */
-  header.top::after {
-    content: 'v38-sidebar-list-card';
-    position: absolute;
-    bottom: 2px;
-    right: 8px;
-    font-family: var(--font-mono);
-    font-size: 8px;
-    color: var(--ink-3);
-    opacity: 0.45;
-    letter-spacing: 0.1em;
+  /* v39: unified identity across desktop + mobile.
+     Footer stays visible on mobile, just compacted; build-version marker
+     dropped — the deployed commit hash is what matters for cache verification
+     (git log) and the user shouldn't see version cruft in production. */
+  footer.bot {
+    display: flex; justify-content: center;
+    padding: 6px 12px;
+    font-size: 9px;
+    border-top: 1px solid var(--rule);
+    background: var(--bg);
   }
+  footer.bot .ident { gap: 6px; justify-content: center; text-align: center; }
+  /* v39: build-version pseudo-element removed entirely (no UI cruft in prod) */
+  header.top::after { display: none; }
   /* Filter callout: out of the way */
   .filter-callout {
     top: 64px !important;
@@ -1462,7 +1466,11 @@ window.SDL_CATEGORIES = {
     <div class="sheet-body" id="sheet-body"></div>
   </div>
 <footer class="bot">
-      <div>DiscoveryLabNL · Landscape Matrix · v04.2026</div>
+      <div class="ident">
+        <span>DiscoveryLabNL · Self-Driving Labs Landscape</span>
+        <span class="sep">·</span>
+        <span>by <a href="https://yuyang.nl" target="_blank" rel="noopener noreferrer" class="author">Yuyang Wang</a></span>
+      </div>
     </footer>
   `;
 
