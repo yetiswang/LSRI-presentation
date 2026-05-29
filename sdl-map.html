@@ -725,22 +725,31 @@ footer .ident a.author:hover { color: var(--ink); border-bottom-color: var(--ink
      align-items:flex-start + text-align:left. We override all three
      here so the identity strip centers properly. Safe-area-inset-bottom
      pulls it above the iPhone home indicator. */
+  /* v43: footer pinned to viewport bottom with position:fixed so grid-area
+     can't clip it under URL-bar / safe-area / canvas chrome on iPhone.
+     Stays visible regardless of how the rest of the page lays out. */
   footer.bot {
+    position: fixed !important;
+    bottom: 0; left: 0; right: 0;
     display: flex !important;
     flex-direction: row !important;
     justify-content: center !important;
     align-items: center !important;
     text-align: center !important;
     padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px)) !important;
-    font-size: 10px;
+    font-size: 10.5px;
     line-height: 1.3;
     gap: 6px;
     border-top: 1px solid var(--rule);
     background: var(--bg);
-    z-index: 5;   /* above any stray fixed content but below sheet (105) */
+    color: var(--ink-2) !important;   /* override --ink-3 (which was too low-contrast) */
+    z-index: 50;   /* above canvas/svg, below sheet (105) and drawers (110) */
   }
   footer.bot .ident { gap: 6px; justify-content: center; text-align: center; flex-wrap: wrap; }
-  footer.bot .ident .sep { display: none; }   /* compact: drop the · separator on mobile */
+  footer.bot .ident .sep { display: none; }
+  footer.bot .ident a.author { color: var(--ink) !important; border-bottom-color: var(--ink-2) !important; }
+  /* Reserve space at bottom of map area so the fixed footer doesn't sit on top of the globe edge */
+  .map-wrap { padding-bottom: calc(34px + env(safe-area-inset-bottom, 0px)); box-sizing: border-box; }
   /* v39: build-version pseudo-element removed entirely (no UI cruft in prod) */
   header.top::after { display: none; }
   /* Filter callout: out of the way */
@@ -2206,47 +2215,61 @@ function redraw(){
   function clampScale(s){ return Math.max(view.min, Math.min(view.max, s)); }
 
   function zoomBy(factor){
-    stopZoomInertia();   // discrete zoom (button / dblclick / keyboard) cancels inertia
-    view.scale = clampScale(view.scale * factor);
+    stopZoomInertia();   // discrete zoom (button / dblclick / keyboard) cancels coast
+    targetScale = clampScale(view.scale * factor);
+    view.scale = targetScale;
     redraw();
   }
 
-  // === v42: Zoom inertia — Google-Maps-style coast after wheel / pinch ends ===
-  // Both wheel and pinch feed `zoomVel` (log-scale per-frame factor); when the
-  // gesture stops, a rAF loop continues applying it with friction decay so the
-  // zoom eases to a stop instead of cutting off abruptly.
-  let zoomVel = 0;                  // log-scale: view.scale *= exp(zoomVel) per frame
-  let zoomInertiaRaf = null;
-  const ZOOM_FRICTION = 0.88;       // 0.88^15 ≈ 0.15 → ~250ms perceptible coast
-  const ZOOM_VEL_MIN = 0.0008;      // stop when |zoomVel| drops below this
-  const ZOOM_VEL_CAP = 0.12;        // cap incoming velocity (rapid pinches don't fly off)
+  // === v43: Google-Maps-style target-scale animator ===
+  // Each wheel/pinch input moves `targetScale`; an animation loop eases
+  // view.scale toward it at a fixed fraction per frame. Result: trackpad
+  // streams and mouse-wheel ticks both feel smooth — discrete inputs get
+  // a soft catch-up animation, continuous streams stay locked to the target.
+  // This is what Google Maps does internally.
+  let targetScale = null;            // null = not animating
+  let zoomAnimRaf = null;
+  let zoomCoastVel = 0;              // residual log-velocity from pinch release
+  const ZOOM_EASE_K = 0.22;          // fraction of remaining log-distance per frame (~140ms time-constant)
+  const ZOOM_STOP_EPS = 0.0015;      // stop when |log(target/current)| < this
+  const ZOOM_VEL_CAP = 0.12;
 
-  function startZoomInertia(){
-    if (zoomInertiaRaf) cancelAnimationFrame(zoomInertiaRaf);
-    if (Math.abs(zoomVel) < ZOOM_VEL_MIN) { zoomVel = 0; return; }
-    document.body.classList.add('interacting');   // suppress heavy labels during coast
+  function ensureZoomAnim(){
+    if (zoomAnimRaf) return;
+    document.body.classList.add('interacting');
     function step(){
-      // Stop conditions: velocity decayed, or hit a scale clamp boundary
-      const before = view.scale;
-      view.scale = clampScale(view.scale * Math.exp(zoomVel));
-      const hitWall = (zoomVel > 0 && view.scale === view.max) ||
-                      (zoomVel < 0 && view.scale === view.min);
-      zoomVel *= ZOOM_FRICTION;
+      let diff = targetScale != null ? Math.log(targetScale / view.scale) : 0;
+      // Apply pinch-release coast: extra log-velocity that decays per frame
+      const extra = zoomCoastVel;
+      zoomCoastVel *= 0.86;
+      if (Math.abs(extra) < 0.001) zoomCoastVel = 0;
+      // Move toward target + add coast contribution
+      const dLog = diff * ZOOM_EASE_K + extra;
+      const newScale = clampScale(view.scale * Math.exp(dLog));
+      view.scale = newScale;
       redraw();
-      if (hitWall || Math.abs(zoomVel) < ZOOM_VEL_MIN) {
-        zoomVel = 0; zoomInertiaRaf = null;
+      // Stop when both effects have died and view is at target
+      const settled = (targetScale == null || Math.abs(Math.log(targetScale / view.scale)) < ZOOM_STOP_EPS)
+                      && Math.abs(zoomCoastVel) < 0.001;
+      if (settled) {
+        if (targetScale != null) view.scale = targetScale;
+        targetScale = null;
+        zoomCoastVel = 0;
+        zoomAnimRaf = null;
         document.body.classList.remove('interacting');
-        redrawRaf();   // crisp final pass with labels
+        redrawRaf();
         return;
       }
-      zoomInertiaRaf = requestAnimationFrame(step);
+      zoomAnimRaf = requestAnimationFrame(step);
     }
-    zoomInertiaRaf = requestAnimationFrame(step);
+    zoomAnimRaf = requestAnimationFrame(step);
   }
 
   function stopZoomInertia(){
-    if (zoomInertiaRaf) { cancelAnimationFrame(zoomInertiaRaf); zoomInertiaRaf = null; }
-    zoomVel = 0;
+    if (zoomAnimRaf) { cancelAnimationFrame(zoomAnimRaf); zoomAnimRaf = null; }
+    targetScale = null;
+    zoomCoastVel = 0;
+    document.body.classList.remove('interacting');
   }
 
   // === Inertia (mobile v10) ===
@@ -2360,19 +2383,18 @@ function redraw(){
       });
     }
     if (pointers.size >= 2 && pinchStart) {
-      // Pinch zoom — v42: also track velocity so release triggers inertia
+      // Pinch zoom — v43: direct view.scale during gesture; release feeds coast.
       const d = pinchDist();
       if (d > 0 && pinchStart.dist > 0) {
         const newScale = clampScale(pinchStart.viewScale * (d / pinchStart.dist));
-        // log-scale velocity per frame (assume ~16ms)
         const now = performance.now();
         if (pinchStart.lastT && view.scale > 0) {
           const dt = now - pinchStart.lastT;
           if (dt > 0 && dt < 100) {
             const dLog = Math.log(newScale / view.scale);
-            // exponentially smooth incoming velocity
-            zoomVel = zoomVel * 0.5 + (dLog * (16 / dt)) * 0.5;
-            zoomVel = Math.max(-ZOOM_VEL_CAP, Math.min(ZOOM_VEL_CAP, zoomVel));
+            // log-scale velocity per ~16ms frame, smoothed
+            zoomCoastVel = zoomCoastVel * 0.5 + (dLog * (16 / dt)) * 0.5;
+            zoomCoastVel = Math.max(-ZOOM_VEL_CAP, Math.min(ZOOM_VEL_CAP, zoomCoastVel));
           }
         }
         pinchStart.lastT = now;
@@ -2435,10 +2457,12 @@ function redraw(){
 
   function endDrag(e){
     pointers.delete(e.pointerId);
-    // v42: pinch ending → kick off zoom inertia if velocity is meaningful
+    // v43: pinch end → keep coasting via the target-scale animator (zoomCoastVel
+    // contributes alongside any active target). Animator stops itself once both
+    // the target and the coast have settled.
     if (pointers.size < 2 && pinchStart) {
       pinchStart = null;
-      if (Math.abs(zoomVel) > ZOOM_VEL_MIN) startZoomInertia();
+      if (Math.abs(zoomCoastVel) > 0.001) ensureZoomAnim();
     }
     if (pointers.size === 0) {
       const wasDragging = !!dragging;
@@ -2476,21 +2500,20 @@ function redraw(){
   }, { passive: true });
 
 
-  // Wheel to zoom — v42: smoothed velocity feeds inertia coast on wheel-end
-  let wheelEndTimer = null;
+  // Wheel to zoom — v43: target-scale animator gives smooth coast on both
+  // discrete mouse-wheel ticks AND continuous trackpad streams.
   svg.addEventListener('wheel', (e) => {
     e.preventDefault();
-    stopZoomInertia();   // any prior inertia ends as soon as user re-engages
-    const delta = -e.deltaY * 0.0015;   // log-scale step
-    view.scale = clampScale(view.scale * Math.exp(delta));
-    redraw();
-    // Exponential moving average so a flick of the wheel accumulates velocity
-    zoomVel = zoomVel * 0.6 + delta * 0.4;
-    zoomVel = Math.max(-ZOOM_VEL_CAP, Math.min(ZOOM_VEL_CAP, zoomVel));
+    zoomCoastVel = 0;   // wheel input dominates any residual pinch coast
+    const delta = -e.deltaY * 0.0015;
+    // Each wheel event moves the target forward; the animator catches up.
+    // For a single mouse-wheel click (~deltaY=100): target jumps to scale*0.86,
+    // animator eases over ~10 frames. For trackpad streams: target accumulates
+    // each event, animator stays continuously catching up.
+    const cur = targetScale != null ? targetScale : view.scale;
+    targetScale = clampScale(cur * Math.exp(delta));
     zHint.classList.add('fade');
-    // Debounce wheel-end: 80ms after the last event, kick off inertia
-    clearTimeout(wheelEndTimer);
-    wheelEndTimer = setTimeout(() => { startZoomInertia(); }, 80);
+    ensureZoomAnim();
   }, { passive: false });
 
   // Double-click to zoom in toward clicked point
