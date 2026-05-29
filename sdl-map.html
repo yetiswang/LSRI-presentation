@@ -208,14 +208,14 @@ aside.left{ grid-area:left; }
   stroke: currentColor;
   stroke-width: 1.5px;
   /* base r set in JS at init (r=6) since not all browsers honour 'r' CSS prop */
-  transform-origin: 0 0;        /* SVG circles default to cx=0,cy=0 */
-  transform-box: fill-box;
+  transform-box: fill-box;       /* reference box = circle's own bbox */
+  transform-origin: center;      /* radial expansion from circle centre (iOS-strict) */
   animation: pulse 1.8s ease-out infinite;
   will-change: transform, opacity;
 }
 @keyframes pulse {
-  0%   { transform: scale(1);    opacity: 0.85; }
-  100% { transform: scale(4.7);  opacity: 0;    }
+  0%   { transform: translateZ(0) scale(1);   opacity: 0.85; }
+  100% { transform: translateZ(0) scale(4.7); opacity: 0;    }
 }
 
 .marker-label{
@@ -715,7 +715,7 @@ footer .leg .circ{ border:1px solid var(--ink-3); border-radius:50%; }
   footer.bot { display: none; }
   /* But keep a build version readable in the title bar bottom corner */
   header.top::after {
-    content: 'mobile-v32-cluster-spread';
+    content: 'mobile-v33-ios-pulse-origin';
     position: absolute;
     bottom: 2px;
     right: 8px;
@@ -857,8 +857,10 @@ body.interacting .land { opacity: 0.92; }
     fill: none;
     stroke: currentColor;
     stroke-width: 1.8;
-    animation: pulse 1.8s ease-out infinite;
+    transform-box: fill-box;
     transform-origin: center;
+    animation: pulse 1.8s ease-out infinite;
+    will-change: transform, opacity;
   }
 }
 
