@@ -2206,8 +2206,47 @@ function redraw(){
   function clampScale(s){ return Math.max(view.min, Math.min(view.max, s)); }
 
   function zoomBy(factor){
+    stopZoomInertia();   // discrete zoom (button / dblclick / keyboard) cancels inertia
     view.scale = clampScale(view.scale * factor);
     redraw();
+  }
+
+  // === v42: Zoom inertia — Google-Maps-style coast after wheel / pinch ends ===
+  // Both wheel and pinch feed `zoomVel` (log-scale per-frame factor); when the
+  // gesture stops, a rAF loop continues applying it with friction decay so the
+  // zoom eases to a stop instead of cutting off abruptly.
+  let zoomVel = 0;                  // log-scale: view.scale *= exp(zoomVel) per frame
+  let zoomInertiaRaf = null;
+  const ZOOM_FRICTION = 0.88;       // 0.88^15 ≈ 0.15 → ~250ms perceptible coast
+  const ZOOM_VEL_MIN = 0.0008;      // stop when |zoomVel| drops below this
+  const ZOOM_VEL_CAP = 0.12;        // cap incoming velocity (rapid pinches don't fly off)
+
+  function startZoomInertia(){
+    if (zoomInertiaRaf) cancelAnimationFrame(zoomInertiaRaf);
+    if (Math.abs(zoomVel) < ZOOM_VEL_MIN) { zoomVel = 0; return; }
+    document.body.classList.add('interacting');   // suppress heavy labels during coast
+    function step(){
+      // Stop conditions: velocity decayed, or hit a scale clamp boundary
+      const before = view.scale;
+      view.scale = clampScale(view.scale * Math.exp(zoomVel));
+      const hitWall = (zoomVel > 0 && view.scale === view.max) ||
+                      (zoomVel < 0 && view.scale === view.min);
+      zoomVel *= ZOOM_FRICTION;
+      redraw();
+      if (hitWall || Math.abs(zoomVel) < ZOOM_VEL_MIN) {
+        zoomVel = 0; zoomInertiaRaf = null;
+        document.body.classList.remove('interacting');
+        redrawRaf();   // crisp final pass with labels
+        return;
+      }
+      zoomInertiaRaf = requestAnimationFrame(step);
+    }
+    zoomInertiaRaf = requestAnimationFrame(step);
+  }
+
+  function stopZoomInertia(){
+    if (zoomInertiaRaf) { cancelAnimationFrame(zoomInertiaRaf); zoomInertiaRaf = null; }
+    zoomVel = 0;
   }
 
   // === Inertia (mobile v10) ===
@@ -2291,7 +2330,8 @@ function redraw(){
   // and lets the browser fire 'click' naturally for taps that don't move enough.
   const DRAG_THRESHOLD_PX = 8;
   svg.addEventListener('pointerdown', (e) => {
-    cancelInertia();                 // any touch cancels in-flight inertia
+    cancelInertia();                 // any touch cancels rotation inertia
+    stopZoomInertia();               // v42: also cancel zoom inertia on re-touch
     velSamples = [];
     // Always record this pointer's start position
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, startX: e.clientX, startY: e.clientY, captured: false });
@@ -2320,10 +2360,23 @@ function redraw(){
       });
     }
     if (pointers.size >= 2 && pinchStart) {
-      // Pinch zoom
+      // Pinch zoom — v42: also track velocity so release triggers inertia
       const d = pinchDist();
       if (d > 0 && pinchStart.dist > 0) {
-        view.scale = clampScale(pinchStart.viewScale * (d / pinchStart.dist));
+        const newScale = clampScale(pinchStart.viewScale * (d / pinchStart.dist));
+        // log-scale velocity per frame (assume ~16ms)
+        const now = performance.now();
+        if (pinchStart.lastT && view.scale > 0) {
+          const dt = now - pinchStart.lastT;
+          if (dt > 0 && dt < 100) {
+            const dLog = Math.log(newScale / view.scale);
+            // exponentially smooth incoming velocity
+            zoomVel = zoomVel * 0.5 + (dLog * (16 / dt)) * 0.5;
+            zoomVel = Math.max(-ZOOM_VEL_CAP, Math.min(ZOOM_VEL_CAP, zoomVel));
+          }
+        }
+        pinchStart.lastT = now;
+        view.scale = newScale;
         redrawRaf();
       }
       return;
@@ -2382,7 +2435,11 @@ function redraw(){
 
   function endDrag(e){
     pointers.delete(e.pointerId);
-    if (pointers.size < 2) pinchStart = null;
+    // v42: pinch ending → kick off zoom inertia if velocity is meaningful
+    if (pointers.size < 2 && pinchStart) {
+      pinchStart = null;
+      if (Math.abs(zoomVel) > ZOOM_VEL_MIN) startZoomInertia();
+    }
     if (pointers.size === 0) {
       const wasDragging = !!dragging;
       const releaseVel = wasDragging ? computeReleaseVelocity() : null;
@@ -2419,11 +2476,21 @@ function redraw(){
   }, { passive: true });
 
 
-  // Wheel to zoom
+  // Wheel to zoom — v42: smoothed velocity feeds inertia coast on wheel-end
+  let wheelEndTimer = null;
   svg.addEventListener('wheel', (e) => {
     e.preventDefault();
-    zoomBy(Math.exp(-e.deltaY * 0.0015));
+    stopZoomInertia();   // any prior inertia ends as soon as user re-engages
+    const delta = -e.deltaY * 0.0015;   // log-scale step
+    view.scale = clampScale(view.scale * Math.exp(delta));
+    redraw();
+    // Exponential moving average so a flick of the wheel accumulates velocity
+    zoomVel = zoomVel * 0.6 + delta * 0.4;
+    zoomVel = Math.max(-ZOOM_VEL_CAP, Math.min(ZOOM_VEL_CAP, zoomVel));
     zHint.classList.add('fade');
+    // Debounce wheel-end: 80ms after the last event, kick off inertia
+    clearTimeout(wheelEndTimer);
+    wheelEndTimer = setTimeout(() => { startZoomInertia(); }, 80);
   }, { passive: false });
 
   // Double-click to zoom in toward clicked point
