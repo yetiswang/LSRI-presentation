@@ -720,7 +720,7 @@ footer .leg .circ{ border:1px solid var(--ink-3); border-radius:50%; }
   footer.bot { display: none; }
   /* But keep a build version readable in the title bar bottom corner */
   header.top::after {
-    content: 'v37-glow-match-original';
+    content: 'v38-sidebar-list-card';
     position: absolute;
     bottom: 2px;
     right: 8px;
@@ -1838,6 +1838,14 @@ window.SDL_CATEGORIES = {
           showTip(d, e);
         };
         row.onmouseleave = hideTip;
+        // v38: click on a list item opens the same Maps-style card as tapping the pin.
+        // setupBottomSheet exposes openSheet via window.__sheet; tolerate the IIFE not
+        // having run yet (defensive — list could render before sheet wiring on slow loads).
+        row.style.cursor = 'pointer';
+        row.onclick = (ev) => {
+          ev.stopPropagation();
+          if (window.__sheet?.openSheet) window.__sheet.openSheet(d);
+        };
         list.appendChild(row);
       });
   }
