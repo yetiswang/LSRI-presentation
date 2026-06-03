@@ -2071,7 +2071,14 @@ window.SDL_CATEGORIES = {
     gMarkers.appendChild(g);
   });
 
+  // v45.q — the tip IS the truth. Whatever pin the tip is currently
+  // showing for is what the user is looking at; clicking should always
+  // open that pin regardless of cursor coordinates at the moment of
+  // click or any drift between hover and commit. `_tipOwner` is the
+  // tip's currently-shown pin (null when hidden).
+  let _tipOwner = null;
   function showTip(d, e){
+    _tipOwner = d;
     const tierLabel = CATS.tier.options.find(o=>o.id===d.tier).label;
     const matLabel  = CATS.maturity.options.find(o=>o.id===d.maturity)?.label || d.maturity;
     const domLabel  = CATS.domain.options.find(o=>o.id===d.domain)?.label || d.domain;
@@ -2099,7 +2106,7 @@ window.SDL_CATEGORIES = {
     tip.style.left = Math.min(x, wrap.width - tw - 10) + 'px';
     tip.style.top  = Math.min(y, wrap.height - th - 10) + 'px';
   }
-  function hideTip(){ tip.classList.remove('show'); }
+  function hideTip(){ tip.classList.remove('show'); _tipOwner = null; }
 
   // Right list
   const rightAside = app.querySelector('aside.right');
@@ -2521,11 +2528,25 @@ function redraw(){
       // big at low zoom and visually blocked the dots themselves. They still
       // grow with zoomGrowth, capped at 32px so they stay readable when
       // user drills in deep.
-      // v45.p — mobile readability bump. Touch base 10 → 13 (small-screen
-      // visibility), desktop kept at 8. Cap raised to 22 so mobile labels
-      // don't shrink past 13 at low zoom.
-      const labelBaseFs = isTouch ? 13 : 8;
-      const fs = Math.min(22, Math.max(labelBaseFs, labelBaseFs * zoomGrowth));
+      // v45.q — CSS-pixel-targeted font sizing. The previous SVG-internal
+      // sizing (font-size = N where N is SVG-units) shrinks dramatically
+      // on small-viewport scaling (viewBox 1000×560 fit into 390-wide gives
+      // scrScale=0.39, so a font-size of 13 renders as 5 CSS-px on screen).
+      // The audit on a 390×844 mobile viewport showed font-size 20.8 SVG
+      // rendering as a 5px-tall visual — far below Apple HIG's 11pt
+      // readability floor for non-critical labels.
+      //
+      // Fix: target an on-screen CSS-pixel size, then back-compute the
+      // SVG-internal value via scrScale. Touch targets 14 CSS-px (matches
+      // SF Compact body small-screen), desktop targets 11 CSS-px (mouse +
+      // viewing distance = smaller reads OK). Cap by screen pixels too.
+      const rect2 = svg.getBoundingClientRect();
+      const scrScale2 = Math.min(rect2.width / 1000, rect2.height / 560) || 0.39;
+      const targetCssPx = isTouch ? 14 : 11;
+      const maxCssPx    = isTouch ? 22 : 17;
+      const labelBaseFs = targetCssPx / scrScale2;       // SVG-internal that renders as targetCssPx CSS-px
+      const fsCap       = maxCssPx / scrScale2;          // SVG-internal cap (renders as maxCssPx)
+      const fs = Math.min(fsCap, Math.max(labelBaseFs, labelBaseFs * zoomGrowth));
       // Anchor offset uses dotGrowth (matches visual marker size, label sits
       // just outside the dot at every zoom level).
       const markerR = 8 * dotGrowth + 4;
@@ -3178,11 +3199,17 @@ function redraw(){
   // Tap/click on empty map (not on a marker) closes the tip
   svg.addEventListener('click', (e) => {
     if (wasDirectTapClick(e)) return;
-    // v45.g — priority order:
-    //   1. _pendingClickTarget captured at mousedown wins always.
-    //   2. _hoveredPicked at click time (fallback for synthesised clicks).
-    //   3. pickMarkerFromEvent on the click coords (no prior hover).
-    let picked = _pendingClickTarget || _hoveredPicked || pickMarkerFromEvent(e, pickRadiusForEvent(e));
+    // v45.q — TIP IS THE TRUTH. If a tip is currently visible, it shows
+    // for one specific pin and that's what the user sees; clicking always
+    // opens THAT pin, regardless of cursor pixel coordinates at click
+    // time. Hover state is the authoritative answer; click defers to it.
+    //
+    // Fallbacks preserved for direct-click cases (no hover history):
+    //   1. _tipOwner — the pin whose tip is currently shown.
+    //   2. _pendingClickTarget — captured at mousedown over a hovered pin.
+    //   3. _hoveredPicked — hover state.
+    //   4. pickMarkerFromEvent — re-pickup from click coords.
+    let picked = _tipOwner || _pendingClickTarget || _hoveredPicked || pickMarkerFromEvent(e, pickRadiusForEvent(e));
     _pendingClickTarget = null;
     if (picked) {
       routePickedMarker(picked, e);
