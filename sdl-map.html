@@ -77,83 +77,85 @@
 html, body{ margin:0; padding:0; background:var(--bg); color:var(--ink); font-family:var(--font-sans); }
 body{ min-height:100vh; -webkit-font-smoothing:antialiased; }
 
-/* v45.c — single-column grid at every viewport. Filter + selected sidebars
-   are slide-in overlays (mobile-style), giving desktop users a full-width
-   map by default with two toggle buttons to summon the panels. Consistent
-   layout shape across mobile and desktop = no jank on viewport resize. */
+/* v45.d — collapsible sidebars as IN-FLOW grid columns (not overlays).
+   When open, they look like the previous always-on layout. When closed, the
+   map fills the full width. No backdrop, no blur. Both sides toggle
+   independently — user can have neither / left only / right only / both. */
 #app{
   display:grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: auto 1fr auto;
   grid-template-rows: auto 1fr auto;
   grid-template-areas:
-    "header"
-    "map"
-    "footer";
+    "header header header"
+    "left   map    right"
+    "footer footer footer";
   gap:0;
   min-height:100vh;
 }
-/* Sidebars: fixed slide-in overlays, same behavior on all viewports. */
 aside{
-  position:fixed;
-  top:0; height:100dvh;
-  width: min(360px, 92vw);
-  z-index:100;
-  background:var(--bg);
-  border:0;
-  box-shadow: 0 0 60px rgba(0,0,0,0.45);
-  transition: transform .28s cubic-bezier(.2,.8,.2,1);
-  padding: 22px 22px 32px;
-  overflow-y:auto;
-  font-size: 15px;
+  width: 0;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  background: var(--bg);
+  transition: width .28s cubic-bezier(.2,.8,.2,1),
+              padding .28s cubic-bezier(.2,.8,.2,1),
+              border-width .28s cubic-bezier(.2,.8,.2,1);
+  font-size: 14px;
+  max-height: calc(100vh - 0px);
+  overflow-y: hidden;
 }
-aside.left{ left:0; transform: translateX(-100%); border-right:1px solid var(--rule); }
-aside.right{ right:0; transform: translateX(100%); border-left:1px solid var(--rule); }
-aside.left.open, aside.right.open{ transform: translateX(0); }
-.drawer-backdrop{
-  display:none; position:fixed; inset:0;
-  background: rgba(0,0,0,0.45);
-  backdrop-filter: blur(2px);
-  z-index:60;
+aside.open{
+  width: clamp(260px, 22vw, 320px);
+  padding: 24px 22px 24px;
+  overflow-y: auto;
 }
-body.drawer-open .drawer-backdrop{ display:block; }
-/* Floating toggle buttons — visible at every viewport now. */
+aside.left.open{ border-right: 1px solid var(--rule); }
+aside.right.open{ border-left: 1px solid var(--rule); }
+/* Toggle buttons — floating top-left / top-right of viewport. Independent
+   of sidebar state so user can collapse + expand each side separately. */
 .mob-toggle{
   position:fixed;
-  top: 88px;
+  top: 100px;
   z-index:55;
   background:var(--surface-overlay);
   border:1px solid var(--rule);
   color:var(--ink);
-  padding: 10px 16px;
-  border-radius: 24px;
+  padding: 9px 14px;
+  border-radius: 20px;
   font-family:var(--font-sans);
   font-size:13px;
   font-weight:500;
   letter-spacing:0.02em;
   cursor:pointer;
-  backdrop-filter: blur(8px);
-  box-shadow: 0 6px 20px rgba(0,0,0,0.25);
-  min-height: 40px;
-  display:flex; align-items:center; gap:8px;
-  transition: background .15s, border-color .15s, transform .12s;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+  min-height: 38px;
+  display:flex; align-items:center; gap:7px;
+  transition: background .15s, border-color .15s, transform .12s, left .28s cubic-bezier(.2,.8,.2,1), right .28s cubic-bezier(.2,.8,.2,1);
 }
 .mob-toggle:hover{ border-color: var(--ink-3); }
 .mob-toggle:active{ transform: scale(0.96); }
-.mob-toggle.left{ left:16px; }
-.mob-toggle.right{ right:16px; }
+.mob-toggle.left{ left:14px; }
+.mob-toggle.right{ right:14px; }
+/* When a side is open the toggle sits next to the sidebar edge. */
+body.left-open .mob-toggle.left{ left: calc(clamp(260px, 22vw, 320px) + 14px); }
+body.right-open .mob-toggle.right{ right: calc(clamp(260px, 22vw, 320px) + 14px); }
 .mob-toggle .badge{
   background:var(--c-commercial); color:#fff;
   font-size:11px; padding: 1px 7px; border-radius:10px;
   min-width:16px; text-align:center;
 }
+/* Drawer close X kept for in-sidebar close affordance. */
 .drawer-close{
   position:absolute; top:12px; right:12px;
-  width:36px; height:36px;
+  width:32px; height:32px;
   background:var(--bg-2); border:1px solid var(--rule);
-  color:var(--ink); border-radius:8px; font-size:20px;
+  color:var(--ink); border-radius:6px; font-size:18px;
   cursor:pointer;
   display:flex; align-items:center; justify-content:center;
 }
+/* Backdrop was previously dim+blur; v45.d removes it entirely. */
+.drawer-backdrop{ display:none !important; }
 
 /* Header */
 header.top{
@@ -498,12 +500,12 @@ footer .ident a.author:hover { color: var(--ink); border-bottom-color: var(--ink
 
 /* ============================================================
    MOBILE RESPONSIVE — added 2026-05-28
-   Strategy: collapse 3-col grid to single col, hide sidebars
-   behind toggle buttons, bump fonts + tap targets for touch.
+   Strategy: below phone/tablet width, collapse the 3-col grid to
+   a single map column and present sidebars as overlay drawers.
    ============================================================ */
 
-/* Tablet + phone: ≤900px */
-@media (max-width: 900px) {
+/* Phone / narrow tablet: <768px */
+@media (max-width: 767px) {
   #app {
     grid-template-columns: 1fr;
     grid-template-rows: auto 1fr auto;
@@ -566,7 +568,7 @@ footer .ident a.author:hover { color: var(--ink); border-bottom-color: var(--ink
     z-index: 99;
     backdrop-filter: blur(2px);
   }
-  body.drawer-open .drawer-backdrop { display: block; }
+  body.drawer-open .drawer-backdrop { display: block !important; }
   /* Drawer close X */
   .drawer-close {
     position: absolute; top: 12px; right: 12px;
@@ -601,6 +603,8 @@ footer .ident a.author:hover { color: var(--ink); border-bottom-color: var(--ink
   }
   .mob-toggle.left  { left: 16px; }
   .mob-toggle.right { right: 16px; }
+  body.left-open .mob-toggle.left { left: 16px; }
+  body.right-open .mob-toggle.right { right: 16px; }
   .mob-toggle .badge {
     background: var(--accent);
     color: var(--bg);
@@ -1399,6 +1403,18 @@ aside.left, aside.right, .sheet, .sheet-body {
   <div id="app"></div>
 
 <script>
+(function initTouchClass(){
+  function applyTouchClass(){
+    if (window.matchMedia('(pointer:coarse)').matches || 'ontouchstart' in window) {
+      document.body.classList.add('is-touch');
+    }
+  }
+  if (document.body) applyTouchClass();
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', applyTouchClass, { once: true });
+  }
+})();
+
 // Global SDL initiatives — geocoded from Global-SDL-Landscape.md
 window.SDL_DATA = [
   // National / Consortium
@@ -1534,6 +1550,28 @@ window.SDL_CATEGORIES = {
 (async function(){
   const CATS = window.SDL_CATEGORIES;
   const DATA = window.SDL_DATA;
+  const DOT_TOUCH_FLOOR = 0.85;
+  const PICK_RADIUS_MOUSE_PX = 28;
+  const PICK_RADIUS_TOUCH_PX = 48;
+  const TAP_TARGET_TOUCH_RADIUS_PX = 22;
+  const DRAG_THRESHOLD_PX = 8;
+  const DRAG_THRESHOLD_TOUCH_PX = 18;
+  const TIER_PRIORITY = { national: 4, commercial: 3, academic: 2, labos: 1 };
+
+  function isTouchMode(){
+    return document.body.classList.contains('is-touch');
+  }
+  function isTouchEvent(e){
+    return e && (e.pointerType === 'touch' || (e.type && e.type.indexOf('touch') === 0));
+  }
+  function pickRadiusForEvent(e){
+    return (isTouchEvent(e) || isTouchMode())
+      ? Math.max(PICK_RADIUS_TOUCH_PX, TAP_TARGET_TOUCH_RADIUS_PX)
+      : PICK_RADIUS_MOUSE_PX;
+  }
+  function labelPriority(d){
+    return TIER_PRIORITY[d.tier] || 0;
+  }
 
   const worldUrl = "https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-110m.json";
   const chinaUrl = "https://raw.githubusercontent.com/longwosion/geojson-map-china/master/china.json";
@@ -2171,6 +2209,7 @@ function redraw(){
     const k = view.scale / BASE_SCALE;
     const r = view.scale;
     const isInteracting = document.body.classList.contains('interacting');
+    const isTouch = isTouchMode();
 
     // === CANVAS DRAW (heavy globe layers) ===
     // Clear with the page background colour
@@ -2279,7 +2318,12 @@ function redraw(){
     DATA.forEach(d => {
       const p = projection([d.lon, d.lat]);
       const dist = gcDist(center, [d.lon, d.lat]);
-      if (dist < 88 && p) {
+      // v45.d — also require projected point within viewBox (with a small
+      // margin for label headroom). Fixes UK ARIA-style "ghost markers" at
+      // high zoom: marker projects outside 0..1000 / 0..560, becomes invisible
+      // AND unclickable, but used to still appear in the visible list.
+      const inFrame = p && p[0] > -40 && p[0] < 1040 && p[1] > -40 && p[1] < 600;
+      if (dist < 88 && inFrame) {
         // Start each frame with the original radial offset (initialised at marker create)
         d._renderOff = [d._off[0], d._off[1]];
         d._proj = p;
@@ -2308,7 +2352,8 @@ function redraw(){
     const _dotRaw   = Math.max(1.0, Math.min(1.8, Math.sqrt(k / 5.5) + 0.3));
     const _peakK    = 11;
     const _dotDecay = Math.exp(-Math.max(0, k - _peakK) / 25);
-    const dotGrowth = Math.max(0.55, _dotRaw * _dotDecay + 0.55 * (1 - _dotDecay));
+    const rawDotGrowth = Math.max(0.55, _dotRaw * _dotDecay + 0.55 * (1 - _dotDecay));
+    const dotGrowth = isTouch ? Math.max(DOT_TOUCH_FLOOR, rawDotGrowth) : rawDotGrowth;
     // v45 — anti-overlap removed. Dots now sit at their TRUE projected lat/lon
     // (modulo the locKey radial jitter from line 1787 which only spreads dupes
     // sharing the same coordinate). This means dense regions (Europe) stay
@@ -2324,7 +2369,7 @@ function redraw(){
     // Step 3: render each visible marker with scaled size + position + label
     // v45: labels stay visible during interaction (no blink on pan/pinch). The
     // k >= 3.0 floor stays — at very far-out zoom labels would be sub-pixel.
-    const showLabels = k >= 3.0;
+    const showLabels = isTouch ? k >= 1.0 : k >= 3.0;
     _visible.forEach(d => {
       const x = d._proj[0] + d._renderOff[0];
       const y = d._proj[1] + d._renderOff[1];
@@ -2334,6 +2379,7 @@ function redraw(){
       const isDim = d._el.classList.contains('dim');
       d._el.style.opacity = isDim ? limbFade * 0.08 : limbFade;
       d._x = x; d._y = y;
+      d._visualRadius = investRadius(d.invest) * dotGrowth;
       d._el.querySelector('.m-inner').removeAttribute('transform');
       if (d._label) {
         // v45: defer label positioning to placeLabels(). Stash render flags only.
@@ -2347,9 +2393,12 @@ function redraw(){
     // order. No frame-to-frame state — fully deterministic per frame.
     // Mobile-safe: O(n²) on 73 markers, ≈5300 AABB checks per frame at 60fps.
     if (showLabels) {
-      // v45 — label base 15 → 12 (less shouty at default zoom; still grows
-      // with zoom up to a 36px cap).
-      const fs = Math.min(36, Math.max(12, 12 * zoomGrowth));
+      // v45.d — base 12 → 10 desktop (and 16 → 13 touch). Labels were too
+      // big at low zoom and visually blocked the dots themselves. They still
+      // grow with zoomGrowth, capped at 32px so they stay readable when
+      // user drills in deep.
+      const labelBaseFs = isTouch ? 13 : 10;
+      const fs = Math.min(32, Math.max(labelBaseFs, labelBaseFs * zoomGrowth));
       // Anchor offset uses dotGrowth (matches visual marker size, label sits
       // just outside the dot at every zoom level).
       const markerR = 8 * dotGrowth + 4;
@@ -2377,13 +2426,19 @@ function redraw(){
         { dx: far,      dy: -far,                ta: 'start'  },  // NE-far
         { dx: -far,     dy: -far,                ta: 'end'    }   // NW-far
       ];
-      const ranked = _visible
+      let ranked = _visible
         .filter(d => d._label && d._labelOn)
-        .sort((a, b) => (investRadius(b.invest) - investRadius(a.invest)) ||
+        .sort((a, b) => (labelPriority(b) - labelPriority(a)) ||
+                        ((a._dist || 0) - (b._dist || 0)) ||
+                        (investRadius(b.invest) - investRadius(a.invest)) ||
                         (a._x - b._x));
+      if (isTouch && k < 3.0) {
+        ranked = ranked.slice(0, Math.ceil(ranked.length * 0.5));
+      }
       const placed = [];
       _visible.forEach(d => {
-        if (d._label && !d._labelOn) d._label.style.display = 'none';
+        if (d._label) d._label.style.display = 'none';
+        if (d._leader) d._leader.style.display = 'none';
       });
       for (const d of ranked) {
         const w = d.name.length * fs * 0.55 + 4;
@@ -2567,9 +2622,10 @@ function redraw(){
   let targetScale = null;            // null = not animating
   let zoomAnimRaf = null;
   let zoomCoastVel = 0;              // residual log-velocity from pinch release
-  // v45.b — even softer ease (0.14 → 0.07) for a long, glide-y zoom feel.
-  // Each wheel tick or pinch flick travels noticeably further before settling.
-  const ZOOM_EASE_K = 0.07;
+  // v45.d — snappier ease (0.07 → 0.22) so the view tracks user input
+  // tightly during the gesture; the long coast (decay 0.97) still carries
+  // the trailing motion. Snappy + glide-y = best of both.
+  const ZOOM_EASE_K = 0.22;
   const ZOOM_STOP_EPS = 0.0015;      // stop when |log(target/current)| < this
   const ZOOM_VEL_CAP = 0.30;   // v45.b — allow much bigger initial coast velocity
 
@@ -2690,8 +2746,30 @@ function redraw(){
   // v27: pointer state pre-arms on touch start; drag/pinch only commits after
   // movement crosses a threshold. Lets fingers land on pins without blocking drag,
   // and lets the browser fire 'click' naturally for taps that don't move enough.
-  const DRAG_THRESHOLD_PX = 8;
+  let lastPointerType = '';
+  let lastDirectTap = { t: 0, x: 0, y: 0 };
+
+  function dragThresholdForEvent(e){
+    return (isTouchEvent(e) || lastPointerType === 'touch' || isTouchMode())
+      ? DRAG_THRESHOLD_TOUCH_PX
+      : DRAG_THRESHOLD_PX;
+  }
+  function routePickedMarker(picked, e){
+    showTip(picked, e);
+    if (window.__sheet && window.__sheet.openSheet) {
+      try { window.__sheet.openSheet(picked); } catch(_) {}
+    }
+  }
+  function markDirectTap(e){
+    lastDirectTap = { t: performance.now(), x: e.clientX, y: e.clientY };
+  }
+  function wasDirectTapClick(e){
+    return performance.now() - lastDirectTap.t < 700 &&
+           Math.hypot(e.clientX - lastDirectTap.x, e.clientY - lastDirectTap.y) < 10;
+  }
+
   svg.addEventListener('pointerdown', (e) => {
+    lastPointerType = e.pointerType || lastPointerType;
     cancelInertia();                 // any touch cancels rotation inertia
     stopZoomInertia();               // v42: also cancel zoom inertia on re-touch
     velSamples = [];
@@ -2708,7 +2786,7 @@ function redraw(){
     if (pointers.size === 1) {
       // Pre-arm drag but DO NOT capture pointer yet — capture only after movement.
       // This way, a quick tap on a pin lets the browser fire a click event normally.
-      dragging = { x: e.clientX, y: e.clientY, r: [...view.rotate], pending: true };
+      dragging = { x: e.clientX, y: e.clientY, r: [...view.rotate], pending: true, threshold: dragThresholdForEvent(e) };
     }
   });
   svg.addEventListener('pointermove', (e) => {
@@ -2748,7 +2826,7 @@ function redraw(){
     if (dragging.pending) {
       const dx0 = e.clientX - dragging.x;
       const dy0 = e.clientY - dragging.y;
-      if (Math.hypot(dx0, dy0) < DRAG_THRESHOLD_PX) {
+      if (Math.hypot(dx0, dy0) < dragging.threshold) {
         return;   // still under threshold — don't drag, allow click to fire later
       }
       // Movement exceeded threshold → commit to drag now
@@ -2795,6 +2873,12 @@ function redraw(){
   }
 
   function endDrag(e){
+    const pointerState = pointers.get(e.pointerId);
+    const pendingTap = !!(dragging && dragging.pending && pointerState && pointers.size === 1);
+    const endX = (e.clientX != null) ? e.clientX : pointerState?.x;
+    const endY = (e.clientY != null) ? e.clientY : pointerState?.y;
+    const tapMove = pointerState ? Math.hypot(endX - pointerState.startX, endY - pointerState.startY) : Infinity;
+    const directTap = e.type === 'pointerup' && pendingTap && tapMove <= (dragging.threshold || dragThresholdForEvent(e));
     pointers.delete(e.pointerId);
     // v43: pinch end → keep coasting via the target-scale animator (zoomCoastVel
     // contributes alongside any active target). Animator stops itself once both
@@ -2813,6 +2897,14 @@ function redraw(){
         redrawRaf();   // v28: force redraw so SDL labels become visible again
       } else {
         startInertia(releaseVel.vx, releaseVel.vy);
+      }
+    }
+    if (directTap && (isTouchEvent(e) || lastPointerType === 'touch' || isTouchMode())) {
+      const picked = pickMarkerFromEvent(e, pickRadiusForEvent(e));
+      if (picked) {
+        routePickedMarker(picked, e);
+        markDirectTap(e);
+        if (e.cancelable) e.preventDefault();
       }
     }
     svg.style.cursor = 'grab';
@@ -2837,7 +2929,11 @@ function redraw(){
     const offY = (rect.height -  560 * scale) / 2;
     const sx = (e.clientX - rect.left - offX) / scale;
     const sy = (e.clientY - rect.top  - offY) / scale;
-    const svgThr = thresholdPx / scale;
+    const requestedThreshold = thresholdPx || PICK_RADIUS_MOUSE_PX;
+    const cssThreshold = requestedThreshold >= PICK_RADIUS_TOUCH_PX
+      ? Math.max(requestedThreshold, TAP_TARGET_TOUCH_RADIUS_PX)
+      : requestedThreshold;
+    const svgThr = cssThreshold / scale;
     const svgThr2 = svgThr * svgThr;
     let best = null, bestD2 = svgThr2;
     for (let i = 0; i < list.length; i++) {
@@ -2857,12 +2953,14 @@ function redraw(){
   // clusters (the topmost overlapping hit-circle would win regardless of
   // which dot was actually closest to the cursor).
   let _hoveredPicked = null;
+  let _lastHoverEvt = null;
   svg.addEventListener('pointermove', (e) => {
     // Only meaningful for mouse/pen hover; touch is handled via tap → click.
     if (e.pointerType === 'touch') return;
     if (dragging && !dragging.pending) return;
-    const picked = pickMarkerFromEvent(e, 28);
+    const picked = pickMarkerFromEvent(e, PICK_RADIUS_MOUSE_PX);
     if (picked) {
+      _lastHoverEvt = { clientX: e.clientX, clientY: e.clientY };
       if (picked !== _hoveredPicked) {
         _hoveredPicked = picked;
         showTip(picked, e);
@@ -2871,21 +2969,31 @@ function redraw(){
       }
     } else if (_hoveredPicked) {
       _hoveredPicked = null;
+      _lastHoverEvt = null;
       hideTip();
     }
   }, { passive: true });
 
   // Tap/click on empty map (not on a marker) closes the tip
   svg.addEventListener('click', (e) => {
-    // v45: precision click — pick nearest marker by screen distance, route to
-    // showTip + the bottom-sheet/right-panel opener. Threshold larger on touch.
-    const isCoarse = window.matchMedia && window.matchMedia('(pointer:coarse)').matches;
-    const picked = pickMarkerFromEvent(e, isCoarse ? 36 : 28);
-    if (picked) {
-      showTip(picked, e);
-      if (window.__sheet && window.__sheet.openSheet) {
-        try { window.__sheet.openSheet(picked); } catch(_) {}
+    if (wasDirectTapClick(e)) return;
+    // v45.d — hover-click consistency: if a hover tip is currently up and the
+    // click landed within a small radius of the cursor's last hover position,
+    // prefer the hovered marker. Avoids "I clicked the dot I see highlighted
+    // but a neighbour fired" in dense clusters.
+    let picked = null;
+    if (_hoveredPicked && _lastHoverEvt) {
+      const dx = e.clientX - _lastHoverEvt.clientX;
+      const dy = e.clientY - _lastHoverEvt.clientY;
+      if (dx*dx + dy*dy < 64 /* within 8 CSS px */) {
+        picked = _hoveredPicked;
       }
+    }
+    if (!picked) {
+      picked = pickMarkerFromEvent(e, pickRadiusForEvent(e));
+    }
+    if (picked) {
+      routePickedMarker(picked, e);
       return;
     }
     if (!e.target.closest('.marker')) {
@@ -2896,6 +3004,9 @@ function redraw(){
   // Belt + suspenders: on touchstart on empty map, also dismiss (handles iOS quirks where click fires late)
   svg.addEventListener('touchstart', (e) => {
     if (!e.target.closest('.marker') && e.touches.length === 1) {
+      const t = e.touches[0];
+      const touchPoint = { clientX: t.clientX, clientY: t.clientY, type: 'touchstart' };
+      if (pickMarkerFromEvent(touchPoint, pickRadiusForEvent(touchPoint))) return;
       // Don't hide while user is mid-drag; only on initial single touch
       // The click handler above also fires, but this is faster on iOS
       hideTip();
@@ -2908,10 +3019,10 @@ function redraw(){
   svg.addEventListener('wheel', (e) => {
     e.preventDefault();
     zoomCoastVel = 0;   // wheel input dominates any residual pinch coast
-    // v45.b — bump per-tick magnitude 0.0015 → 0.0028 so each wheel notch /
-    // trackpad event covers more zoom range. With the softer ease + slower
-    // coast decay, this gives "fewer gestures to reach the zoom level you want."
-    const delta = -e.deltaY * 0.0028;
+    // v45.d — bigger per-tick magnitude (0.0028 → 0.0055) so each wheel
+    // notch covers a large zoom step. Combined with a snappy ease (K=0.22)
+    // and a long coast (decay 0.97), zoom feels both responsive and gliding.
+    const delta = -e.deltaY * 0.0055;
     // Each wheel event moves the target forward; the animator catches up.
     // For a single mouse-wheel click (~deltaY=100): target jumps to scale*0.86,
     // animator eases over ~10 frames. For trackpad streams: target accumulates
@@ -3030,36 +3141,42 @@ function redraw(){
   const btnSelected = document.getElementById('mob-selected');
   if (!left || !right || !btnFilters || !btnSelected) return;
 
-  function closeAll(){
-    left.classList.remove('open');
-    right.classList.remove('open');
-    body.classList.remove('drawer-open');
+  // v45.d — each side toggles INDEPENDENTLY. Both can be open at the same
+  // time; map auto-shrinks via the grid layout.
+  function syncBodyClasses(){
+    body.classList.toggle('left-open',  left.classList.contains('open'));
+    body.classList.toggle('right-open', right.classList.contains('open'));
   }
+  function closeLeft(){  left.classList.remove('open');  syncBodyClasses(); }
+  function closeRight(){ right.classList.remove('open'); syncBodyClasses(); }
+  function closeAll(){   closeLeft(); closeRight(); }
   function openLeft(){
-    closeAll();
     left.classList.add('open');
-    body.classList.add('drawer-open');
-    if (!left.querySelector('.drawer-close')) addCloseButton(left);
+    if (!left.querySelector('.drawer-close')) addCloseButton(left, closeLeft);
+    syncBodyClasses();
   }
   function openRight(){
-    closeAll();
     right.classList.add('open');
-    body.classList.add('drawer-open');
-    if (!right.querySelector('.drawer-close')) addCloseButton(right);
+    if (!right.querySelector('.drawer-close')) addCloseButton(right, closeRight);
+    syncBodyClasses();
   }
-  function addCloseButton(el){
+  function toggleLeft(){
+    if (left.classList.contains('open')) closeLeft(); else openLeft();
+  }
+  function toggleRight(){
+    if (right.classList.contains('open')) closeRight(); else openRight();
+  }
+  function addCloseButton(el, fn){
     const btn = document.createElement('button');
     btn.className = 'drawer-close';
     btn.innerHTML = '×';
     btn.setAttribute('aria-label', 'Close');
-    btn.addEventListener('click', closeAll);
+    btn.addEventListener('click', fn);
     el.appendChild(btn);
   }
-  btnFilters.addEventListener('click', openLeft);
-  btnSelected.addEventListener('click', openRight);
-  backdrop.addEventListener('click', closeAll);
-
-  // ESC to close
+  btnFilters.addEventListener('click', toggleLeft);
+  btnSelected.addEventListener('click', toggleRight);
+  // ESC closes both
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') closeAll();
   });
@@ -3083,7 +3200,7 @@ function redraw(){
 
 /* ============ TOUCH GESTURES (added 2026-05-28) ============ */
 (function setupTouchGestures(){
-  if (window.matchMedia('(min-width: 901px)').matches) return;  // desktop only
+  if (window.matchMedia('(min-width: 768px)').matches) return;  // desktop/tablet grid only
   const body = document.body;
   const left = document.querySelector('aside.left');
   const right = document.querySelector('aside.right');
@@ -3137,7 +3254,7 @@ function redraw(){
     }
     startX = null;
   }
-  // Use pointerdown/pointerup for unified mouse+touch (but mostly touch)
+  // Touch edge swipes open/close the same overlay drawers used by the buttons.
   document.addEventListener('touchstart', handleStart, { passive: true });
   document.addEventListener('touchend', handleEnd, { passive: true });
 })();
@@ -3452,10 +3569,18 @@ window.__themeIIFE = 'started';
     if (window.__sdlRefreshTheme) { try { window.__sdlRefreshTheme(); } catch(e){} }
     if (window.redrawRaf) { try { window.redrawRaf(); } catch(e){} }
   }
+  // v45.d — default to LIGHT theme on first load (was: dark). User-toggled
+  // preference still wins (persisted in localStorage).
   try {
     const saved = localStorage.getItem('sdl-map-theme');
-    if (saved === 'light' || saved === 'dark') applyTheme(saved);
-  } catch(e){}
+    if (saved === 'light' || saved === 'dark') {
+      applyTheme(saved);
+    } else {
+      applyTheme('light');
+    }
+  } catch(e){
+    applyTheme('light');
+  }
   function wire(){
     const btn = document.getElementById('theme-toggle');
     if (!btn) return false;
