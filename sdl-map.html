@@ -2583,15 +2583,13 @@ function redraw(){
       // viewing distance = smaller reads OK). Cap by screen pixels too.
       const rect2 = svg.getBoundingClientRect();
       const scrScale2 = Math.min(rect2.width / 1000, rect2.height / 560) || 0.39;
-      // v45.u — drop to 26 + viewport-aware sizing. Chrome on Mac with a
-      // narrow window doesn't set pointer:coarse, so the old desktop-only
-      // branch shipped tiny 12 CSS-px labels at small viewports. Fix: any
-      // viewport < 700 CSS-px wide gets the touch-friendly label size,
-      // regardless of pointer type. Touch body 30 → 26, cap 44 → 38.
+      // v45.w — iOS still felt small at 26. Bumped touch to 32 / 48 cap.
+      // Narrow-viewport (non-touch) stays at 26 / 38 since Mac users at
+      // narrow viewport still have closer reading distance than phone use.
       const narrowViewport = rect2.width < 900;  // catches narrow Mac windows + all phones
       const useChunky = isTouch || narrowViewport;
-      const targetCssPx = useChunky ? 26 : 12;
-      const maxCssPx    = useChunky ? 38 : 18;
+      const targetCssPx = isTouch ? 32 : (narrowViewport ? 26 : 12);
+      const maxCssPx    = isTouch ? 48 : (narrowViewport ? 38 : 18);
       const labelBaseFs = targetCssPx / scrScale2;       // SVG-internal that renders as targetCssPx CSS-px
       const fsCap       = maxCssPx / scrScale2;          // SVG-internal cap (renders as maxCssPx)
       const fs = Math.min(fsCap, Math.max(labelBaseFs, labelBaseFs * zoomGrowth));
