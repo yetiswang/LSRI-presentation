@@ -2583,13 +2583,16 @@ function redraw(){
       // viewing distance = smaller reads OK). Cap by screen pixels too.
       const rect2 = svg.getBoundingClientRect();
       const scrScale2 = Math.min(rect2.width / 1000, rect2.height / 560) || 0.39;
-      // v45.w — iOS still felt small at 26. Bumped touch to 32 / 48 cap.
-      // Narrow-viewport (non-touch) stays at 26 / 38 since Mac users at
-      // narrow viewport still have closer reading distance than phone use.
-      const narrowViewport = rect2.width < 900;  // catches narrow Mac windows + all phones
+      // v45.y — user: "fed up with font size on mobile, just make it 80".
+      // Touch goes to 80 CSS-px / 120 cap. Massive — basically a typeset
+      // headline per pin. Trade-off: heavy crowding in clusters, but the
+      // v45.x progressive disclosure + v45.v leader-cap hide most non-
+      // headline labels at low zoom, leaving a small set of large chunky
+      // labels for the strategic anchors.
+      const narrowViewport = rect2.width < 900;
       const useChunky = isTouch || narrowViewport;
-      const targetCssPx = isTouch ? 32 : (narrowViewport ? 26 : 12);
-      const maxCssPx    = isTouch ? 48 : (narrowViewport ? 38 : 18);
+      const targetCssPx = isTouch ? 80 : (narrowViewport ? 26 : 12);
+      const maxCssPx    = isTouch ? 120 : (narrowViewport ? 38 : 18);
       const labelBaseFs = targetCssPx / scrScale2;       // SVG-internal that renders as targetCssPx CSS-px
       const fsCap       = maxCssPx / scrScale2;          // SVG-internal cap (renders as maxCssPx)
       const fs = Math.min(fsCap, Math.max(labelBaseFs, labelBaseFs * zoomGrowth));
@@ -2620,19 +2623,46 @@ function redraw(){
         { dx: far,      dy: -far,                ta: 'start'  },  // NE-far
         { dx: -far,     dy: -far,                ta: 'end'    }   // NW-far
       ];
+      // v45.x — Google Maps / Apple Maps two-stage label disclosure.
+      // Stage 1 — QUALIFY: each pin has a salience = tier × 1000 +
+      // sqrt(invest). Cap the labelled-pin count by zoom (target labels
+      // in viewport at each zoom level). Highest salience wins. Chunky
+      // sizing (touch / narrow viewport) needs fewer simultaneous labels
+      // because each one is physically bigger.
+      // Stage 2 — PLACE: the greedy collision-placement pass below runs
+      // only on the qualifying set; pins that lose their anchor due to
+      // collision get suppressed by the v45.v leader-cap path. Together:
+      // strategic headlines always visible, dense clusters only crowd
+      // when the user has zoomed in enough to read them.
+      function _salience(d){
+        return (TIER_PRIORITY[d.tier] || 0) * 1000 + Math.sqrt((d.invest || 0) + 1);
+      }
+      const _chunkyMul = useChunky ? 0.6 : 1.0;
+      let _targetN;
+      if (k < 1.5)      _targetN = Math.round(12 * _chunkyMul);   // ≈7 on phone — national-tier headlines
+      else if (k < 2.5) _targetN = Math.round(25 * _chunkyMul);   // ≈15 on phone — + top commercial
+      else if (k < 4.0) _targetN = Math.round(45 * _chunkyMul);   // ≈27 on phone — + academic top half
+      else              _targetN = _visible.length;               // everything
       let ranked = _visible
         .filter(d => d._label && d._labelOn)
-        .sort((a, b) => (labelPriority(b) - labelPriority(a)) ||
+        .sort((a, b) => (_salience(b) - _salience(a)) ||
                         ((a._dist || 0) - (b._dist || 0)) ||
-                        (investRadius(b.invest) - investRadius(a.invest)) ||
                         (a._x - b._x));
-      if (isTouch && k < 3.0) {
-        ranked = ranked.slice(0, Math.ceil(ranked.length * 0.5));
-      }
+      // Hysteresis: when a label was shown last frame, give it a one-step
+      // grace period in the cap so flicker is suppressed at zoom-tier
+      // transitions (Google Maps does the same).
+      const _shownLast = new Set();
+      ranked.forEach(d => { if (d._labelWasShown) _shownLast.add(d); });
+      const _qualifying = new Set(ranked.slice(0, _targetN + _shownLast.size));
+      ranked = ranked.filter(d => _qualifying.has(d));
+      // Track for next-frame hysteresis (set after placement below).
       const placed = [];
+      // v45.x — clear hysteresis flag at frame start; the placement pass
+      // below sets it for labels that actually render.
       _visible.forEach(d => {
         if (d._label) d._label.style.display = 'none';
         if (d._leader) d._leader.style.display = 'none';
+        d._labelWasShown = false;
       });
       for (const d of ranked) {
         // v45.u — use short label width when chunky sizing is active.
@@ -2714,6 +2744,7 @@ function redraw(){
         else                        xVal = p.x + p.w;
         const yVal = p.y + p.h * 0.85;
         d._label.style.display = 'inline';
+        d._labelWasShown = true;   // v45.x — flag for next-frame hysteresis
         d._label.setAttribute('x', xVal);
         d._label.setAttribute('y', yVal);
         d._label.setAttribute('text-anchor', p.ta);
