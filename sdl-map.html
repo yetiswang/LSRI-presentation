@@ -1183,7 +1183,11 @@ aside.left, aside.right, .sheet, .sheet-body {
 .sdl-label {
   font-family: var(--font-sans);
   font-weight: 600;
-  font-size: 11px;   /* v45.n: base smaller — JS scales with zoom */
+  /* v45.z — REMOVED hard-coded font-size. CSS overrode the SVG font-size
+     attribute that the redraw was setting per frame, so every bump v45.n
+     → v45.y was changing the placement math but not the render. The JS
+     redraw sets font-size as an attribute (CSS-px-targeted) and that's
+     what we actually want to render. */
   fill: var(--ink);
   /* v45.n — white halo removed; rely on font weight + subtle text-shadow
      for separation against land/ocean. paint-order kept harmless. */
@@ -2583,16 +2587,13 @@ function redraw(){
       // viewing distance = smaller reads OK). Cap by screen pixels too.
       const rect2 = svg.getBoundingClientRect();
       const scrScale2 = Math.min(rect2.width / 1000, rect2.height / 560) || 0.39;
-      // v45.y — user: "fed up with font size on mobile, just make it 80".
-      // Touch goes to 80 CSS-px / 120 cap. Massive — basically a typeset
-      // headline per pin. Trade-off: heavy crowding in clusters, but the
-      // v45.x progressive disclosure + v45.v leader-cap hide most non-
-      // headline labels at low zoom, leaving a small set of large chunky
-      // labels for the strategic anchors.
+      // v45.z — back to sensible numbers now that font-size attribute
+      // actually renders (CSS font-size override was killing every prior
+      // bump). Touch 28 / 44 cap, narrow viewport 22 / 36, desktop 12 / 18.
       const narrowViewport = rect2.width < 900;
       const useChunky = isTouch || narrowViewport;
-      const targetCssPx = isTouch ? 80 : (narrowViewport ? 26 : 12);
-      const maxCssPx    = isTouch ? 120 : (narrowViewport ? 38 : 18);
+      const targetCssPx = isTouch ? 28 : (narrowViewport ? 22 : 12);
+      const maxCssPx    = isTouch ? 44 : (narrowViewport ? 36 : 18);
       const labelBaseFs = targetCssPx / scrScale2;       // SVG-internal that renders as targetCssPx CSS-px
       const fsCap       = maxCssPx / scrScale2;          // SVG-internal cap (renders as maxCssPx)
       const fs = Math.min(fsCap, Math.max(labelBaseFs, labelBaseFs * zoomGrowth));
