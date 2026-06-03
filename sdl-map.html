@@ -406,6 +406,9 @@ aside.left{ grid-area:left; }
 /* v45.k — hint shows whenever a card is open. Subtle (0.65), fades in
    after a small delay so it doesn't appear instantly. */
 body.marker-hovered .kbd-hint{ opacity: 0.65; }
+/* v45.ae — hint is keyboard-only guidance; touch users have no arrow
+   keys to cycle, so suppress on touch devices entirely. */
+body.is-touch .kbd-hint{ display: none !important; }
 .marker .ring{ fill:none; stroke:currentColor; stroke-width:1; opacity:0.4; }
 .marker .core{ fill:currentColor; }
 .marker.dim{ opacity:0.08; pointer-events:none; }
