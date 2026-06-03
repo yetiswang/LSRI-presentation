@@ -2501,6 +2501,24 @@ function redraw(){
     // v45: labels stay visible during interaction (no blink on pan/pinch). The
     // k >= 3.0 floor stays — at very far-out zoom labels would be sub-pixel.
     const showLabels = isTouch ? k >= 1.0 : k >= 3.0;
+    // v45.r — CSS-px-aware halo + core sizing. The viewBox-to-screen scale
+    // (≈0.39 on a 390-wide phone) means SVG-internal radii render as much
+    // smaller CSS-px on small screens. Per-pin we resize both the visible
+    // halo (the user's tap target) and the visible core dot so they match
+    // a stable design intent across viewports: ≥22 CSS-px halo radius on
+    // touch (44 CSS-px diameter = Apple HIG tap-target minimum) and ≥14
+    // CSS-px on desktop; core dot ≥5 / 3 CSS-px so the visible shape is
+    // never a sub-pixel speck. The rendered halo radius is stashed on
+    // `d._haloRadius` and used by pickMarkerFromEvent — so visible pin
+    // shape == hit area == hover area, by construction.
+    const _rectR = svg.getBoundingClientRect();
+    const _scrScaleR = Math.min(_rectR.width / 1000, _rectR.height / 560) || 0.39;
+    // v45.r — bumped after user "still too small" feedback. Halo 22 → 26
+    // CSS-px radius (52 dia tap target, comfortably above Apple HIG 44).
+    // Core dot 5 → 7 CSS-px radius (14 dia, clearly visible vs the prior
+    // ~5px speck). Desktop bumped less since mouse precision is finer.
+    const _minHaloSvgFinal = (isTouch ? 26 : 16) / _scrScaleR;
+    const _minCoreSvgFinal = (isTouch ? 7  : 4)  / _scrScaleR;
     _visible.forEach(d => {
       const x = d._proj[0] + d._renderOff[0];
       const y = d._proj[1] + d._renderOff[1];
@@ -2510,7 +2528,19 @@ function redraw(){
       const isDim = d._el.classList.contains('dim');
       d._el.style.opacity = isDim ? limbFade * 0.08 : limbFade;
       d._x = x; d._y = y;
-      d._visualRadius = investRadius(d.invest) * dotGrowth;
+      const _invR = investRadius(d.invest);
+      // Pre-transform circle radii (final on-screen size = r × dotGrowth × scrScale)
+      const _hitR  = Math.max(_invR + 2.5, _minHaloSvgFinal / dotGrowth);   // tap target
+      const _coreR = Math.max(_invR,        _minCoreSvgFinal / dotGrowth);  // visible dot
+      const _ringR = Math.max(_invR + 2.5,  _minCoreSvgFinal / dotGrowth + 1);
+      const _hitEl  = d._el.querySelector('.hit');
+      const _coreEl = d._el.querySelector('.core');
+      const _ringEl = d._el.querySelector('.ring');
+      if (_hitEl)  _hitEl.setAttribute('r', _hitR);
+      if (_coreEl) _coreEl.setAttribute('r', _coreR);
+      if (_ringEl) _ringEl.setAttribute('r', _ringR);
+      d._haloRadius   = _hitR * dotGrowth;   // post-transform SVG units, for hit-test
+      d._visualRadius = _coreR * dotGrowth;
       d._el.querySelector('.m-inner').removeAttribute('transform');
       if (d._label) {
         // v45: defer label positioning to placeLabels(). Stash render flags only.
@@ -2542,8 +2572,11 @@ function redraw(){
       // viewing distance = smaller reads OK). Cap by screen pixels too.
       const rect2 = svg.getBoundingClientRect();
       const scrScale2 = Math.min(rect2.width / 1000, rect2.height / 560) || 0.39;
-      const targetCssPx = isTouch ? 14 : 11;
-      const maxCssPx    = isTouch ? 22 : 17;
+      // v45.r — bumped targets after user reported "still too small" on phone.
+      // Touch body 14 → 17 CSS-px (Apple HIG body baseline + matches our
+      // sans default). Touch cap 22 → 28 CSS-px so labels scale up at zoom.
+      const targetCssPx = isTouch ? 17 : 12;
+      const maxCssPx    = isTouch ? 28 : 18;
       const labelBaseFs = targetCssPx / scrScale2;       // SVG-internal that renders as targetCssPx CSS-px
       const fsCap       = maxCssPx / scrScale2;          // SVG-internal cap (renders as maxCssPx)
       const fs = Math.min(fsCap, Math.max(labelBaseFs, labelBaseFs * zoomGrowth));
@@ -3111,21 +3144,27 @@ function redraw(){
     const offY = (rect.height -  560 * scale) / 2;
     const sx = (e.clientX - rect.left - offX) / scale;
     const sy = (e.clientY - rect.top  - offY) / scale;
-    const requestedThreshold = thresholdPx || PICK_RADIUS_MOUSE_PX;
-    const cssThreshold = requestedThreshold >= PICK_RADIUS_TOUCH_PX
-      ? Math.max(requestedThreshold, TAP_TARGET_TOUCH_RADIUS_PX)
-      : requestedThreshold;
-    const svgThr = cssThreshold / scale;
-    const svgThr2 = svgThr * svgThr;
-    let best = null, bestD2 = svgThr2;
+    // v45.r — hit-test against ACTUAL VISIBLE HALO per pin. Visible pin
+    // shape IS the hit area; hover and click use the same mechanism by
+    // construction. When pins are well separated (most of the time, at
+    // most zoom levels), only one halo can contain the cursor — zero
+    // ambiguity. When halos overlap in a dense cluster, the closer pin
+    // wins. No fuzzy threshold, no "click landed between two pins" dead
+    // zones.
+    let best = null, bestD2 = Infinity;
     for (let i = 0; i < list.length; i++) {
       const d = list[i];
       if (!d._el || d._el.style.display === 'none') continue;
       if (d._el.classList.contains('dim')) continue;
+      if (!d._haloRadius) continue;
       const dx = sx - d._x;
       const dy = sy - d._y;
       const d2 = dx*dx + dy*dy;
-      if (d2 < bestD2) { bestD2 = d2; best = d; }
+      const haloR2 = d._haloRadius * d._haloRadius;
+      if (d2 <= haloR2 && d2 < bestD2) {
+        bestD2 = d2;
+        best = d;
+      }
     }
     return best;
   }
