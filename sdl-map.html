@@ -372,6 +372,9 @@ aside.left{ grid-area:left; }
    fit at any anchor close to its marker. Subtle so it doesn't add clutter. */
 .sdl-leader{ stroke: var(--ink-3); stroke-width: 0.5; opacity: 0.45;
   pointer-events: none; vector-effect: non-scaling-stroke; }
+/* v45.j — labels are now clickable. Routes to their owning marker via
+   pickMarkerFromEvent extension. Same cursor + hover hint as markers. */
+.sdl-label{ pointer-events: visiblePainted; cursor: pointer; }
 /* v45.h — keyboard-focused marker. Gentle, subtle: a second ring outside the
    normal one, slowly pulsing in opacity. The marker itself stays the same
    color, so it doesn't shout. */
@@ -2045,19 +2048,19 @@ window.SDL_CATEGORIES = {
     g.addEventListener('click', e => { showTip(d, e); /* no stopPropagation — let document-level sheet handler also fire */ });
 
     // v45: leader line — drawn BEFORE the label so the label paints on top.
-    // Only shown when label is displaced > ~markerR*2 from the dot.
     const leader = document.createElementNS(ns,'line');
     leader.setAttribute('class','sdl-leader');
     leader.style.display = 'none';
     d._leader = leader;
     gLabels.appendChild(leader);
 
-    // v24: SDL name label — appears at high zoom only. Append to gLabels (z-order on top).
+    // v24: SDL name label
     const mLabel = document.createElementNS(ns,'text');
     mLabel.setAttribute('class','sdl-label');
     mLabel.setAttribute('text-anchor','middle');
     mLabel.style.display = 'none';
     mLabel.textContent = d.name;
+    mLabel._owner = d;   // v45.j — back-reference so click on label routes to owner
     d._label = mLabel;
     gLabels.appendChild(mLabel);
 
@@ -3044,6 +3047,14 @@ function redraw(){
   // `thresholdPx` CSS pixels, or null. Iterates the post-render position array
   // exposed by redraw(). O(n) on 73 markers — fast.
   function pickMarkerFromEvent(e, thresholdPx){
+    // v45.j — if the user clicked on a label (or its leader), route directly
+    // to the owning marker. Labels get pushed around by the placement +
+    // relaxation passes, so a nearest-dot search would return the wrong
+    // marker. The label IS the visual element the user thinks they clicked.
+    if (e && e.target) {
+      const lbl = e.target.closest && e.target.closest('.sdl-label');
+      if (lbl && lbl._owner) return lbl._owner;
+    }
     const list = window.__sdlLastVisible;
     if (!list || !list.length) return null;
     const rect = svg.getBoundingClientRect();
@@ -3110,7 +3121,11 @@ function redraw(){
     if (picked) {
       _lastHoverEvt = { clientX: e.clientX, clientY: e.clientY };
       if (picked !== _hoveredPicked) {
-        if (_hoveredPicked) {
+        // v45.j — if the pick came from a label, switch immediately (the user
+        // is unambiguously pointing at that label). Otherwise apply hover
+        // stickiness so small cursor jitter doesn't reroll the pick.
+        const fromLabel = e.target && e.target.closest && e.target.closest('.sdl-label');
+        if (_hoveredPicked && !fromLabel) {
           const dHeld = cursorDistToMarker(e, _hoveredPicked);
           const dNew  = cursorDistToMarker(e, picked);
           if (dNew > dHeld - 10) {
