@@ -3161,6 +3161,86 @@ function redraw(){
     }
   });
 
+  // v45.h — keyboard cycle through visible pins (foolproof for dense clusters).
+  // ←/↑ = prev, →/↓ = next, Enter/Space = pin, Esc = clear.
+  let _kbdSelected = null;
+  function sortedVisibleForKbd(){
+    const list = window.__sdlLastVisible || [];
+    return [...list].sort((a, b) => (a._x - b._x) || (a._y - b._y));
+  }
+  function kbdHint(){
+    if (document.body.classList.contains('kbd-mode')) return;
+    let el = document.querySelector('.kbd-hint');
+    if (!el) {
+      el = document.createElement('div');
+      el.className = 'kbd-hint';
+      el.textContent = '← →  cycle pins  ·  Enter  open  ·  Esc  dismiss';
+      document.body.appendChild(el);
+    }
+    document.body.classList.add('kbd-mode');
+  }
+  function kbdClearVisual(){
+    document.querySelectorAll('.marker.kbd-focus').forEach(el => el.classList.remove('kbd-focus'));
+  }
+  function kbdSelect(marker){
+    kbdClearVisual();
+    if (!marker) {
+      _kbdSelected = null;
+      setHoveredPicked(null);
+      hideTip();
+      return;
+    }
+    if (marker._el) marker._el.classList.add('kbd-focus');
+    _kbdSelected = marker;
+    setHoveredPicked(marker);
+    const rect = svg.getBoundingClientRect();
+    const scrScale = Math.min(rect.width / 1000, rect.height / 560);
+    const offX = (rect.width - 1000 * scrScale) / 2;
+    const offY = (rect.height -  560 * scrScale) / 2;
+    const fakeEvt = {
+      clientX: rect.left + offX + marker._x * scrScale,
+      clientY: rect.top  + offY + marker._y * scrScale
+    };
+    showTip(marker, fakeEvt);
+  }
+  function kbdCycle(delta){
+    const list = sortedVisibleForKbd();
+    if (!list.length) return;
+    const curIdx = _kbdSelected ? list.indexOf(_kbdSelected) : -1;
+    const idx = (curIdx < 0)
+      ? (delta > 0 ? 0 : list.length - 1)
+      : ((curIdx + delta + list.length) % list.length);
+    kbdSelect(list[idx]);
+  }
+  document.addEventListener('keydown', (e) => {
+    const tag = e.target && e.target.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target && e.target.isContentEditable)) return;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+      e.preventDefault(); kbdHint(); kbdCycle(1);
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      e.preventDefault(); kbdHint(); kbdCycle(-1);
+    } else if (e.key === 'Escape') {
+      if (_kbdSelected) kbdSelect(null);
+    } else if ((e.key === 'Enter' || e.key === ' ') && _kbdSelected) {
+      e.preventDefault();
+      const rect = svg.getBoundingClientRect();
+      const scrScale = Math.min(rect.width / 1000, rect.height / 560);
+      const offX = (rect.width - 1000 * scrScale) / 2;
+      const offY = (rect.height -  560 * scrScale) / 2;
+      routePickedMarker(_kbdSelected, {
+        clientX: rect.left + offX + _kbdSelected._x * scrScale,
+        clientY: rect.top  + offY + _kbdSelected._y * scrScale
+      });
+    }
+  });
+  // Mouse interaction with a DIFFERENT marker clears the kbd selection.
+  svg.addEventListener('pointermove', () => {
+    if (_kbdSelected && _hoveredPicked && _hoveredPicked !== _kbdSelected) {
+      kbdClearVisual();
+      _kbdSelected = null;
+    }
+  });
+
   // Belt + suspenders: on touchstart on empty map, also dismiss (handles iOS quirks where click fires late)
   svg.addEventListener('touchstart', (e) => {
     if (!e.target.closest('.marker') && e.touches.length === 1) {
@@ -3365,92 +3445,9 @@ function redraw(){
   // the authoritative click path. We don't bind toggleLeft/toggleRight to
   // the buttons here, to avoid double-fire. ESC handled by openDrawer block.
 
-  // v45.h — keyboard cycle through visible pins (foolproof for dense clusters
-  // where mouse aim is hard). ←/↑ = prev, →/↓ = next, Enter/Space = pin
-  // (opens the right-panel sheet), Esc = clear.
-  let _kbdSelected = null;
-  function sortedVisibleForKbd(){
-    const list = window.__sdlLastVisible || [];
-    return [...list].sort((a, b) => (a._x - b._x) || (a._y - b._y));
-  }
-  function kbdHint(){
-    if (document.body.classList.contains('kbd-mode')) return;
-    let el = document.querySelector('.kbd-hint');
-    if (!el) {
-      el = document.createElement('div');
-      el.className = 'kbd-hint';
-      el.textContent = '← →  cycle pins  ·  Enter  open  ·  Esc  dismiss';
-      document.body.appendChild(el);
-    }
-    document.body.classList.add('kbd-mode');
-  }
-  function kbdSelect(marker){
-    document.querySelectorAll('.marker.kbd-focus').forEach(el => el.classList.remove('kbd-focus'));
-    if (!marker) {
-      _kbdSelected = null;
-      setHoveredPicked(null);
-      hideTip();
-      return;
-    }
-    if (marker._el) marker._el.classList.add('kbd-focus');
-    _kbdSelected = marker;
-    setHoveredPicked(marker);
-    const rect = svg.getBoundingClientRect();
-    const scrScale = Math.min(rect.width / 1000, rect.height / 560);
-    const offX = (rect.width - 1000 * scrScale) / 2;
-    const offY = (rect.height -  560 * scrScale) / 2;
-    const fakeEvt = {
-      clientX: rect.left + offX + marker._x * scrScale,
-      clientY: rect.top  + offY + marker._y * scrScale
-    };
-    showTip(marker, fakeEvt);
-  }
-  function kbdCycle(delta){
-    const list = sortedVisibleForKbd();
-    if (!list.length) return;
-    let idx;
-    const curIdx = _kbdSelected ? list.indexOf(_kbdSelected) : -1;
-    if (curIdx < 0) {
-      idx = delta > 0 ? 0 : list.length - 1;
-    } else {
-      idx = (curIdx + delta + list.length) % list.length;
-    }
-    kbdSelect(list[idx]);
-  }
-  document.addEventListener('keydown', (e) => {
-    const tag = e.target && e.target.tagName;
-    if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target?.isContentEditable) return;
-    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-      e.preventDefault();
-      kbdHint();
-      kbdCycle(1);
-    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-      e.preventDefault();
-      kbdHint();
-      kbdCycle(-1);
-    } else if (e.key === 'Escape') {
-      if (_kbdSelected) { kbdSelect(null); }
-    } else if ((e.key === 'Enter' || e.key === ' ') && _kbdSelected) {
-      e.preventDefault();
-      const rect = svg.getBoundingClientRect();
-      const scrScale = Math.min(rect.width / 1000, rect.height / 560);
-      const offX = (rect.width - 1000 * scrScale) / 2;
-      const offY = (rect.height -  560 * scrScale) / 2;
-      const fakeEvt = {
-        clientX: rect.left + offX + _kbdSelected._x * scrScale,
-        clientY: rect.top  + offY + _kbdSelected._y * scrScale
-      };
-      routePickedMarker(_kbdSelected, fakeEvt);
-    }
-  });
-  // Mouse interaction with any marker resets the kbd selection so the visual
-  // cue doesn't linger on an old kbd pick while user is now hovering elsewhere.
-  svg.addEventListener('pointermove', () => {
-    if (_kbdSelected && _hoveredPicked && _hoveredPicked !== _kbdSelected) {
-      document.querySelectorAll('.marker.kbd-focus').forEach(el => el.classList.remove('kbd-focus'));
-      _kbdSelected = null;
-    }
-  });
+  // v45.h kbd code moved to the main IIFE (was being shadowed by an early-
+  // return in setupMobileDrawers when the DOM wasn't ready). See marker
+  // setup section for the active code path.
 
   // Update badge count for selected (looks at active filter chips)
   function updateBadge(){
