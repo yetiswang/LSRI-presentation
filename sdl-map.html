@@ -2587,13 +2587,12 @@ function redraw(){
       // viewing distance = smaller reads OK). Cap by screen pixels too.
       const rect2 = svg.getBoundingClientRect();
       const scrScale2 = Math.min(rect2.width / 1000, rect2.height / 560) || 0.39;
-      // v45.aa — user "now too big, do 10 or so". Touch 10 / 22 cap,
-      // narrow viewport 10 / 20, desktop 11 / 18 (slight bump down on
-      // desktop too since the actual render was previously at 11px CSS).
+      // v45.ab — user "still a bit big, do maybe 7". Touch 7 / 16 cap,
+      // narrow viewport 7 / 16, desktop unchanged at 11 / 18.
       const narrowViewport = rect2.width < 900;
       const useChunky = isTouch || narrowViewport;
-      const targetCssPx = isTouch ? 10 : (narrowViewport ? 10 : 11);
-      const maxCssPx    = isTouch ? 22 : (narrowViewport ? 20 : 18);
+      const targetCssPx = isTouch ? 7 : (narrowViewport ? 7 : 11);
+      const maxCssPx    = isTouch ? 16 : (narrowViewport ? 16 : 18);
       const labelBaseFs = targetCssPx / scrScale2;       // SVG-internal that renders as targetCssPx CSS-px
       const fsCap       = maxCssPx / scrScale2;          // SVG-internal cap (renders as maxCssPx)
       const fs = Math.min(fsCap, Math.max(labelBaseFs, labelBaseFs * zoomGrowth));
