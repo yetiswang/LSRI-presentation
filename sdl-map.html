@@ -554,15 +554,22 @@ footer .ident a.author:hover { color: var(--ink); border-bottom-color: var(--ink
     padding: 14px 16px 12px;
     gap: 10px;
   }
-  /* v45.e — title was overflowing the narrow top bar. Drop the size + shorten
-     the eyebrow line; let the heading wrap naturally on multi-line. */
-  .brand h1 { font-size: 18px; line-height: 1.2; font-weight: 600;
-    overflow-wrap: anywhere; word-break: break-word; max-width: 100%; }
-  .brand .eyebrow { font-size: 10px; }
-  .brand-lockup{ flex-wrap: wrap; align-items: flex-start; gap: 10px; max-width: 100%; }
-  .tue-logo img{ height: 28px !important; }
-  .header-right{ width: 100%; flex-wrap: wrap; justify-content: space-between; }
-  .theme-toggle{ width: 36px !important; height: 36px !important; }
+  /* v45.e — mobile header restructure: TU/e + h1 on one horizontal line,
+     counts below. Title stays SINGLE-LINE (no per-character wrap). */
+  header.top { padding: 12px 14px 10px !important; gap: 10px !important; align-items: stretch !important; }
+  .brand h1 { font-size: 17px; line-height: 1.2; font-weight: 600;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; margin: 0; }
+  .brand h1 .dim { color: var(--ink-3); }
+  .brand .eyebrow { font-size: 9.5px; letter-spacing: 0.18em; }
+  .brand-lockup{ flex-wrap: nowrap; align-items: center; gap: 12px;
+    min-width: 0; flex: 1 1 auto; }
+  .brand{ min-width: 0; flex: 1 1 auto; }
+  .tue-logo img{ height: 26px !important; flex-shrink: 0; }
+  .header-right{ flex: 0 0 auto; gap: 14px; }
+  .counts{ gap: 10px !important; }
+  .counts .n{ font-size: 16px !important; }
+  .counts .lbl{ font-size: 8.5px !important; }
+  .theme-toggle{ width: 36px !important; height: 36px !important; flex-shrink: 0; }
   .counts {
     width: 100%;
     gap: 14px;
@@ -3236,12 +3243,9 @@ function redraw(){
     btn.addEventListener('click', fn);
     el.appendChild(btn);
   }
-  btnFilters.addEventListener('click', toggleLeft);
-  btnSelected.addEventListener('click', toggleRight);
-  // ESC closes both
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeAll();
-  });
+  // v45.e — the document-level openDrawer handler (defined further down) is
+  // the authoritative click path. We don't bind toggleLeft/toggleRight to
+  // the buttons here, to avoid double-fire. ESC handled by openDrawer block.
 
   // Update badge count for selected (looks at active filter chips)
   function updateBadge(){
@@ -3486,15 +3490,29 @@ function setupBottomSheet(){
     left?.classList.remove('open');
     right?.classList.remove('open');
     document.body.classList.remove('drawer-open');
+    document.body.classList.remove('left-open');
+    document.body.classList.remove('right-open');
     if (back) back.style.display = '';  // clear any stale inline display
   }
+  // v45.e — desktop allows both sides open simultaneously; mobile keeps the
+  // single-drawer pattern (one closes when the other opens).
   function openDrawer(side){
     const {left, right, back} = getDrawers();
-    closeAllDrawers();
+    const isMobile = window.matchMedia('(max-width: 900px)').matches;
+    if (isMobile) closeAllDrawers();
     const el = side === 'left' ? left : right;
     if (!el) return;
+    if (el.classList.contains('open')) {
+      el.classList.remove('open');
+      document.body.classList.remove(side === 'left' ? 'left-open' : 'right-open');
+      if (!document.body.classList.contains('left-open') && !document.body.classList.contains('right-open')) {
+        document.body.classList.remove('drawer-open');
+      }
+      return;
+    }
     el.classList.add('open');
     document.body.classList.add('drawer-open');
+    document.body.classList.add(side === 'left' ? 'left-open' : 'right-open');
     // backdrop visibility is handled via CSS (body.drawer-open .drawer-backdrop {display:block})
     // Add a close × button to the drawer if not already present
     if (!el.querySelector('.drawer-close')) {
