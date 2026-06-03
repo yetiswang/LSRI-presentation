@@ -2572,11 +2572,10 @@ function redraw(){
       // viewing distance = smaller reads OK). Cap by screen pixels too.
       const rect2 = svg.getBoundingClientRect();
       const scrScale2 = Math.min(rect2.width / 1000, rect2.height / 560) || 0.39;
-      // v45.r — bumped targets after user reported "still too small" on phone.
-      // Touch body 14 → 17 CSS-px (Apple HIG body baseline + matches our
-      // sans default). Touch cap 22 → 28 CSS-px so labels scale up at zoom.
-      const targetCssPx = isTouch ? 17 : 12;
-      const maxCssPx    = isTouch ? 28 : 18;
+      // v45.s — bumped again per user "still small at 17, try 20".
+      // Touch body 17 → 20 CSS-px, cap 28 → 32. Desktop unchanged.
+      const targetCssPx = isTouch ? 20 : 12;
+      const maxCssPx    = isTouch ? 32 : 18;
       const labelBaseFs = targetCssPx / scrScale2;       // SVG-internal that renders as targetCssPx CSS-px
       const fsCap       = maxCssPx / scrScale2;          // SVG-internal cap (renders as maxCssPx)
       const fs = Math.min(fsCap, Math.max(labelBaseFs, labelBaseFs * zoomGrowth));
