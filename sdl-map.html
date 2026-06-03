@@ -2063,7 +2063,18 @@ window.SDL_CATEGORIES = {
     mLabel.setAttribute('class','sdl-label');
     mLabel.setAttribute('text-anchor','middle');
     mLabel.style.display = 'none';
-    mLabel.textContent = d.name;
+    // v45.u — short label form for chunky touch sizes. Strip parenthetical
+    // sub-titles and after-slash sub-names, then cap at ~28 chars.
+    function shortenLabel(name){
+      let s = name;
+      s = s.replace(/\s*\([^)]*\)\s*/g, ' ').trim();   // drop "(...)"
+      s = s.split(/\s*\/\s*/)[0].trim();                // keep before first "/"
+      if (s.length > 28) s = s.slice(0, 27).trim() + '…';
+      return s;
+    }
+    d._labelShort = shortenLabel(d.name);
+    d._labelFull  = d.name;
+    mLabel.textContent = d._labelFull;
     mLabel._owner = d;   // v45.j — back-reference so click on label routes to owner
     d._label = mLabel;
     gLabels.appendChild(mLabel);
@@ -2572,12 +2583,15 @@ function redraw(){
       // viewing distance = smaller reads OK). Cap by screen pixels too.
       const rect2 = svg.getBoundingClientRect();
       const scrScale2 = Math.min(rect2.width / 1000, rect2.height / 560) || 0.39;
-      // v45.t — user: "Make it 30?" Touch body 20 → 30 CSS-px, cap 32 → 44.
-      // 30 CSS-px is large-text / accessibility range — chunky but maybe
-      // the right call on a small phone screen with thumb-reading distance.
-      // Desktop unchanged at 12 / 18.
-      const targetCssPx = isTouch ? 30 : 12;
-      const maxCssPx    = isTouch ? 44 : 18;
+      // v45.u — drop to 26 + viewport-aware sizing. Chrome on Mac with a
+      // narrow window doesn't set pointer:coarse, so the old desktop-only
+      // branch shipped tiny 12 CSS-px labels at small viewports. Fix: any
+      // viewport < 700 CSS-px wide gets the touch-friendly label size,
+      // regardless of pointer type. Touch body 30 → 26, cap 44 → 38.
+      const narrowViewport = rect2.width < 900;  // catches narrow Mac windows + all phones
+      const useChunky = isTouch || narrowViewport;
+      const targetCssPx = useChunky ? 26 : 12;
+      const maxCssPx    = useChunky ? 38 : 18;
       const labelBaseFs = targetCssPx / scrScale2;       // SVG-internal that renders as targetCssPx CSS-px
       const fsCap       = maxCssPx / scrScale2;          // SVG-internal cap (renders as maxCssPx)
       const fs = Math.min(fsCap, Math.max(labelBaseFs, labelBaseFs * zoomGrowth));
@@ -2623,7 +2637,9 @@ function redraw(){
         if (d._leader) d._leader.style.display = 'none';
       });
       for (const d of ranked) {
-        const w = d.name.length * fs * 0.55 + 4;
+        // v45.u — use short label width when chunky sizing is active.
+        const _nameForWidth = (useChunky && d._labelShort) ? d._labelShort : d.name;
+        const w = _nameForWidth.length * fs * 0.55 + 4;
         const h = fs * 1.15;
         let best = null, bestScore = Infinity;
         for (let i = 0; i < anchors.length; i++) {
@@ -2704,6 +2720,12 @@ function redraw(){
         d._label.setAttribute('y', yVal);
         d._label.setAttribute('text-anchor', p.ta);
         d._label.setAttribute('font-size', fs + 'px');
+        // v45.u — swap to short label form when chunky sizing is active
+        // (touch or narrow viewport). Keeps dense clusters legible without
+        // forcing long names off-screen via aggressive label relaxation.
+        const _wantShort = (useChunky && d._labelShort && d._labelShort !== d._labelFull);
+        const _wantText  = _wantShort ? d._labelShort : d._labelFull;
+        if (d._label.textContent !== _wantText) d._label.textContent = _wantText;
         d._label.style.opacity = d._labelFade;
         d._lbox = { x: p.x, y: p.y, w: p.w, h: p.h };
         // Leader line: draw when label center is far enough from the dot that
