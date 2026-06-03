@@ -15,6 +15,7 @@
 
 <style>
 :root{
+  /* v45: dark is default. Light theme overrides below under [data-theme="light"]. */
   --bg:         oklch(0.18 0.01 240);
   --bg-2:       oklch(0.22 0.01 240);
   --bg-3:       oklch(0.26 0.01 240);
@@ -35,6 +36,41 @@
 
   --font-sans: 'Inter', system-ui, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  /* v45 — overlay / sheet surfaces (formerly hardcoded oklch(0.14 / 0.12 240)). */
+  --surface-overlay:    oklch(0.14 0.01 240 / 0.94);
+  --surface-deep:       oklch(0.12 0.01 240);
+  --surface-hover:      oklch(0.18 0.012 240);
+  --globe-gradient-mid: oklch(0.22 0.015 240);
+  --globe-gradient-end: oklch(0.14 0.01 240);
+}
+
+[data-theme="light"]{
+  --bg:         oklch(0.985 0.003 85);
+  --bg-2:       oklch(0.965 0.004 85);
+  --bg-3:       oklch(0.93  0.005 85);
+  --ink:        oklch(0.18  0.01  240);
+  --ink-2:      oklch(0.36  0.01  240);
+  --ink-3:      oklch(0.52  0.01  240);
+  --ink-4:      oklch(0.66  0.01  240);
+  --rule:       oklch(0.86  0.005 85);
+  --rule-2:     oklch(0.91  0.005 85);
+  --land:       oklch(0.93  0.005 85);
+  --land-edge:  oklch(0.78  0.005 85);
+  --graticule:  oklch(0.88  0.005 85);
+
+  /* Slightly deeper marker colors to keep contrast on warm-white bg */
+  --c-national:   oklch(0.58 0.18 85);
+  --c-academic:   oklch(0.55 0.18 220);
+  --c-commercial: oklch(0.55 0.22 25);
+  --c-labos:      oklch(0.55 0.18 300);
+
+  /* v45 — light overlay surfaces (replace dark popup/sheet backgrounds). */
+  --surface-overlay:    oklch(0.985 0.005 85 / 0.96);
+  --surface-deep:       oklch(0.96 0.005 85);
+  --surface-hover:      oklch(0.93 0.006 85);
+  --globe-gradient-mid: oklch(0.92 0.005 85);
+  --globe-gradient-end: oklch(0.82 0.005 85);
 }
 
 *{ box-sizing:border-box; }
@@ -61,6 +97,30 @@ header.top{
   border-bottom:1px solid var(--rule);
   gap:40px;
 }
+.brand-lockup{ display:flex; align-items:center; gap:22px; min-width:0; }
+.tue-logo{ display:flex; align-items:center; flex-shrink:0; }
+.tue-logo img{ height:38px; width:auto; display:block;
+  /* TU/e red on dark: keep the brand red. On light: still red — good contrast. */
+}
+.brand-lockup::after{
+  content:""; display:none;
+  /* Spacer kept in case we want a hairline divider later */
+}
+.header-right{ display:flex; align-items:center; gap:24px; }
+.theme-toggle{
+  appearance:none; background:var(--bg-2); color:var(--ink);
+  border:1px solid var(--rule); border-radius:8px;
+  width:40px; height:40px; padding:0;
+  display:inline-flex; align-items:center; justify-content:center;
+  cursor:pointer;
+  transition:color .15s ease, border-color .15s ease, background .15s ease, transform .12s ease;
+}
+.theme-toggle:hover{ color:var(--ink); border-color:var(--ink-2); background:var(--bg-3); }
+.theme-toggle:active{ transform:scale(0.94); }
+.theme-toggle svg{ width:20px; height:20px; }
+.theme-toggle .ico-sun{ display:none; }
+[data-theme="light"] .theme-toggle .ico-moon{ display:none; }
+[data-theme="light"] .theme-toggle .ico-sun{ display:inline; }
 .brand .eyebrow{
   font-family:var(--font-mono); font-size:11px; color:var(--ink-3);
   letter-spacing:0.22em; text-transform:uppercase; margin-bottom:6px;
@@ -152,6 +212,13 @@ aside.left{ grid-area:left; }
 #map{ width:100%; height:100%; display:block; touch-action:none; user-select:none; }
 .map-wrap svg{ width:100%; height:100%; display:block; }
 
+/* v45 — globe gradient stops driven by CSS variables (theme-aware).
+   The SVG <stop> stop-color attribute is set once via innerHTML, but a
+   stop-color CSS rule wins over the attribute, so we override here per theme. */
+#globeFill stop:nth-child(1){ stop-color: oklch(0.30 0.02 230); }
+#globeFill stop:nth-child(2){ stop-color: var(--globe-gradient-mid); }
+#globeFill stop:nth-child(3){ stop-color: var(--globe-gradient-end); }
+[data-theme="light"] #globeFill stop:nth-child(1){ stop-color: oklch(0.96 0.01 235); }
 .graticule{ fill:none; stroke:var(--graticule); stroke-width:0.5; opacity:0.5; vector-effect:non-scaling-stroke; }
 .sphere{ fill:none; stroke:var(--rule); stroke-width:1; vector-effect:non-scaling-stroke; }
 .sphere-fill{ pointer-events:none; }
@@ -174,8 +241,9 @@ aside.left{ grid-area:left; }
   font-size:8px; fill:var(--ink-3); opacity:0;
   letter-spacing:0.18em; pointer-events:none;
   transition: opacity .35s;
-  paint-order: stroke fill;
-  stroke: var(--bg); stroke-width: 2.5px; stroke-linejoin:round;
+  /* v45: stroke removed — conflicted with the SDL marker-label halo and
+     made the map read noisy. Plain fill reads cleanly on both themes. */
+  stroke: none;
 }
 .country-label[data-tier="1"]{ font-size:8.5px; fill:var(--ink-2); letter-spacing:0.2em; }
 .country-label[data-tier="2"]{ font-size:7.5px; fill:var(--ink-3); }
@@ -186,12 +254,15 @@ aside.left{ grid-area:left; }
   font-size:8px; fill:var(--ink-3); opacity:0;
   letter-spacing:0.06em; pointer-events:none;
   transition: opacity .35s;
-  paint-order: stroke fill;
-  stroke: var(--bg); stroke-width: 2.5px; stroke-linejoin:round;
+  /* v45: stroke removed (see .country-label note). */
+  stroke: none;
 }
 
 /* Markers */
-.marker{ cursor:pointer; transition: opacity .2s; }
+/* v45: pointer-events disabled on individual markers — hover/click is
+   routed centrally via pickMarkerFromEvent (precise nearest-by-screen-distance,
+   fixes wrong-marker selection in clusters). */
+.marker{ cursor:pointer; transition: opacity .2s; pointer-events:none; }
 .marker .ring{ fill:none; stroke:currentColor; stroke-width:1; opacity:0.4; }
 .marker .core{ fill:currentColor; }
 .marker.dim{ opacity:0.08; pointer-events:none; }
@@ -233,7 +304,7 @@ aside.left{ grid-area:left; }
 /* Tooltip */
 .tip{
   position:absolute; pointer-events:none;
-  background:oklch(0.14 0.01 240 / 0.96);
+  background:var(--surface-overlay);
   border:1px solid var(--rule);
   border-radius:3px;
   padding:12px 14px;
@@ -293,7 +364,7 @@ footer .ident a.author:hover { color: var(--ink); border-bottom-color: var(--ink
 .zoom-ctl{
   position:absolute; top:16px; right:16px; z-index:10;
   display:flex; flex-direction:column; gap:4px;
-  background:oklch(0.14 0.01 240 / 0.9);
+  background:var(--surface-overlay);
   border:1px solid var(--rule); border-radius:4px;
   padding:4px;
   backdrop-filter:blur(4px);
@@ -319,7 +390,7 @@ footer .ident a.author:hover { color: var(--ink); border-bottom-color: var(--ink
 }
 .region-nav button{
   padding:6px 10px;
-  background:oklch(0.14 0.01 240 / 0.9);
+  background:var(--surface-overlay);
   border:1px solid var(--rule);
   color:var(--ink-2); cursor:pointer;
   font-family:var(--font-mono); font-size:11px; font-weight:600;
@@ -337,7 +408,7 @@ footer .ident a.author:hover { color: var(--ink); border-bottom-color: var(--ink
   font-family:var(--font-mono); font-size:11px; color:var(--ink-2);
   letter-spacing:0.04em; line-height:1.5;
   padding:8px 16px; border:1px solid var(--accent); border-radius:3px;
-  background:oklch(0.14 0.01 240 / 0.88); backdrop-filter:blur(6px);
+  background:var(--surface-overlay); backdrop-filter:blur(6px);
   max-width:520px; text-align:center;
   pointer-events:none; z-index:25;
   opacity:0; transition:opacity .4s;
@@ -350,7 +421,7 @@ footer .ident a.author:hover { color: var(--ink); border-bottom-color: var(--ink
   font-family:var(--font-mono); font-size:10.5px; color:var(--ink-3);
   letter-spacing:0.14em; text-transform:uppercase;
   padding:6px 14px; border:1px solid var(--rule-2); border-radius:2px;
-  background:oklch(0.14 0.01 240 / 0.7); backdrop-filter:blur(4px);
+  background:var(--surface-overlay); backdrop-filter:blur(4px);
   pointer-events:none; transition:opacity .5s;
 }
 .zoom-hint.fade{ opacity:0; }
@@ -443,7 +514,7 @@ footer .ident a.author:hover { color: var(--ink); border-bottom-color: var(--ink
     position: fixed;
     bottom: 70px;
     z-index: 50;
-    background: oklch(0.16 0.01 240 / 0.96);
+    background: var(--surface-overlay);
     border: 1px solid var(--rule);
     color: var(--ink);
     padding: 12px 18px;
@@ -694,7 +765,7 @@ footer .ident a.author:hover { color: var(--ink); border-bottom-color: var(--ink
     bottom: 16px !important;
     right: 16px !important;
     padding: 6px;
-    background: oklch(0.14 0.01 240 / 0.94);
+    background: var(--surface-overlay);
     border: 1px solid var(--rule);
     border-radius: 10px;
     box-shadow: 0 4px 14px rgba(0,0,0,0.4);
@@ -716,7 +787,7 @@ footer .ident a.author:hover { color: var(--ink); border-bottom-color: var(--ink
     font-size: 12px !important;
     min-height: 38px;
     border-radius: 8px;
-    background: oklch(0.14 0.01 240 / 0.94);
+    background: var(--surface-overlay);
     box-shadow: 0 2px 10px rgba(0,0,0,0.3);
   }
   /* Hide the textual zoom hint on mobile */
@@ -811,7 +882,7 @@ body.interacting .land { opacity: 0.92; }
   position: fixed;
   left: 0; right: 0;
   bottom: 0;
-  background: oklch(0.12 0.01 240);
+  background: var(--surface-deep);
   border-top: 1px solid var(--rule);
   border-top-left-radius: 16px;
   border-top-right-radius: 16px;
@@ -865,7 +936,7 @@ body.interacting .land { opacity: 0.92; }
   padding: 8px 12px; border-radius: 6px; margin-bottom: 10px;
   transition: background .15s, border-color .15s;
 }
-.sheet-links a.homepage:hover { background: oklch(0.18 0.012 240); border-color: var(--ink-3); }
+.sheet-links a.homepage:hover { background: var(--surface-hover); border-color: var(--ink-3); }
 .sheet-links a.homepage::after { content: "↗"; font-size: 11px; opacity: 0.7; }
 .sheet-links ul.sources { list-style: none; padding: 0; margin: 6px 0 0; }
 .sheet-links ul.sources li { margin: 4px 0; }
@@ -1000,7 +1071,8 @@ aside.left, aside.right, .sheet, .sheet-body {
   .marker-label:not(.sdl-label) { display: none; }
   .sdl-label { font-weight: 700; stroke-width: 5px; }
 }
-body.interacting .sdl-label { visibility: hidden; }
+/* v45: SDL labels stay visible during pan/pinch (never blink on interaction). */
+/* body.interacting .sdl-label { visibility: hidden; } */
 
 
 /* ============================================================
@@ -1207,7 +1279,7 @@ body.interacting .sdl-label { visibility: hidden; }
     right: var(--s-4) !important;
     padding: var(--s-1);
     border-radius: var(--r-soft);
-    background: oklch(0.14 0.01 240 / 0.92);
+    background: var(--surface-overlay);
     border: 1px solid var(--rule);
     box-shadow: var(--shadow-1);
   }
@@ -1231,7 +1303,7 @@ body.interacting .sdl-label { visibility: hidden; }
     font-weight: var(--w-strong);
     letter-spacing: 0.12em;
     border-radius: var(--r-tight);
-    background: oklch(0.14 0.01 240 / 0.92);
+    background: var(--surface-overlay);
     box-shadow: var(--shadow-1);
   }
 }
@@ -1435,14 +1507,25 @@ window.SDL_CATEGORIES = {
     <header class="top">
     <button class="mob-toggle mob-only left" id="mob-filters" aria-label="Open filters">☰</button>
     <button class="mob-toggle mob-only right" id="mob-selected" aria-label="Open selected list">★<span class="badge" id="mob-selected-n">0</span></button>
-      <div class="brand">
-        <div class="eyebrow">DiscoveryLabNL \u00B7 live tracker</div>
-        <h1>Global Self-Driving Lab <span class="dim">Landscape</span></h1>
+      <div class="brand-lockup">
+        <a class="tue-logo" href="https://www.tue.nl/" target="_blank" rel="noopener" aria-label="TU Eindhoven">
+          <img src="img/tue-logo.png" alt="TU Eindhoven">
+        </a>
+        <div class="brand">
+          <div class="eyebrow">DiscoveryLabNL \u00B7 live tracker</div>
+          <h1>Global Self-Driving Lab <span class="dim">Landscape</span></h1>
+        </div>
       </div>
-      <div class="counts">
-        <div><span class="n" id="count-total">0</span><span class="lbl">Initiatives</span></div>
-        <div><span class="n" id="count-shown">0</span><span class="lbl">Highlighted</span></div>
-        <div><span class="n" id="count-countries">0</span><span class="lbl">Countries</span></div>
+      <div class="header-right">
+        <div class="counts">
+          <div><span class="n" id="count-total">0</span><span class="lbl">Initiatives</span></div>
+          <div><span class="n" id="count-shown">0</span><span class="lbl">Highlighted</span></div>
+          <div><span class="n" id="count-countries">0</span><span class="lbl">Countries</span></div>
+        </div>
+        <button class="theme-toggle" id="theme-toggle" aria-label="Toggle dark / light theme" title="Toggle theme">
+          <svg class="ico-moon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          <svg class="ico-sun" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+        </button>
       </div>
     </header>
 
@@ -1554,13 +1637,28 @@ window.SDL_CATEGORIES = {
   }
   _resizeCanvas();
   window.addEventListener('resize', _resizeCanvas);
-  // Read CSS variables once
-  const _cs = getComputedStyle(document.documentElement);
-  const COL_LAND      = _cs.getPropertyValue('--land').trim() || '#333';
-  const COL_LAND_EDGE = _cs.getPropertyValue('--land-edge').trim() || '#444';
-  const COL_GRATICULE = _cs.getPropertyValue('--graticule').trim() || '#444';
-  const COL_RULE      = _cs.getPropertyValue('--rule').trim() || '#555';
-  const COL_BG        = _cs.getPropertyValue('--bg').trim() || '#111';
+  // v45 — CSS variables read on theme change. The initial constants are kept
+  // for first paint speed; readThemeColors() refreshes them so theme toggle
+  // updates canvas-rendered globe/graticule/sphere immediately.
+  let _cs = getComputedStyle(document.documentElement);
+  let COL_LAND      = _cs.getPropertyValue('--land').trim() || '#333';
+  let COL_LAND_EDGE = _cs.getPropertyValue('--land-edge').trim() || '#444';
+  let COL_GRATICULE = _cs.getPropertyValue('--graticule').trim() || '#444';
+  let COL_RULE      = _cs.getPropertyValue('--rule').trim() || '#555';
+  let COL_BG        = _cs.getPropertyValue('--bg').trim() || '#111';
+  let COL_OCEAN_MID = _cs.getPropertyValue('--globe-gradient-mid').trim() || 'oklch(0.22 0.015 240)';
+  let COL_OCEAN_END = _cs.getPropertyValue('--globe-gradient-end').trim() || 'oklch(0.14 0.01 240)';
+  function refreshThemeColors(){
+    _cs = getComputedStyle(document.documentElement);
+    COL_LAND      = _cs.getPropertyValue('--land').trim() || COL_LAND;
+    COL_LAND_EDGE = _cs.getPropertyValue('--land-edge').trim() || COL_LAND_EDGE;
+    COL_GRATICULE = _cs.getPropertyValue('--graticule').trim() || COL_GRATICULE;
+    COL_RULE      = _cs.getPropertyValue('--rule').trim() || COL_RULE;
+    COL_BG        = _cs.getPropertyValue('--bg').trim() || COL_BG;
+    COL_OCEAN_MID = _cs.getPropertyValue('--globe-gradient-mid').trim() || COL_OCEAN_MID;
+    COL_OCEAN_END = _cs.getPropertyValue('--globe-gradient-end').trim() || COL_OCEAN_END;
+  }
+  window.__sdlRefreshTheme = refreshThemeColors;
   // Helper: draw a feature via canvas-path generator
   function _drawFeat(feat, style){
     _ctx.beginPath();
@@ -2013,11 +2111,11 @@ function redraw(){
       _ctx.arc(CX, CY, r + 30, 0, Math.PI * 2);
       _ctx.fill();
     }
-    // Sphere fill (gradient sphere body)
+    // Sphere fill (gradient sphere body) — theme-aware via COL_OCEAN_*.
     {
       const grad = _ctx.createRadialGradient(CX - r * 0.25, CY - r * 0.35, r * 0.1, CX, CY, r);
-      grad.addColorStop(0, 'oklch(0.30 0.02 240)');
-      grad.addColorStop(1, 'oklch(0.16 0.01 240)');
+      grad.addColorStop(0, COL_OCEAN_MID);
+      grad.addColorStop(1, COL_OCEAN_END);
       _ctx.fillStyle = grad;
       _ctx.beginPath();
       _ctx.arc(CX, CY, r, 0, Math.PI * 2);
@@ -2097,6 +2195,9 @@ function redraw(){
     // v24 marker pass — projection, zoom-scaled radius, anti-overlap, label visibility
     // Step 1: project all markers, mark visibility, compute base offsets
     const _visible = [];
+    // v45: expose to outer scope so pickMarkerFromEvent can use the post-anti-
+    // overlap, post-render positions for precise hover/click hit-testing.
+    window.__sdlLastVisible = _visible;
     DATA.forEach(d => {
       const p = projection([d.lon, d.lat]);
       const dist = gcDist(center, [d.lon, d.lat]);
@@ -2117,61 +2218,136 @@ function redraw(){
     // v26: growth=1.0 at the default starting zoom (k≈5.5), grows only when user zooms in further.
     // Previously sqrt(k) gave 2.34× pins at default — way too big, hit areas blocked drag.
     const k0 = view.scale / BASE_SCALE / 5.5;   // normalized: 1.0 at default, 2.0 at 2× default
-    const zoomGrowth = Math.max(1.0, Math.min(2.0, Math.sqrt(k / 5.5) + 0.3));
-    // v26: only do real anti-overlap above default zoom; at default we trust the projection
-    const separation = baseR * 1.6 * zoomGrowth;
-    for (let pass = 0; pass < 4; pass++) {
-      for (let i = 0; i < _visible.length; i++) {
-        const a = _visible[i];
-        const ax = a._proj[0] + a._renderOff[0];
-        const ay = a._proj[1] + a._renderOff[1];
-        for (let j = i + 1; j < _visible.length; j++) {
-          const b = _visible[j];
-          const bx = b._proj[0] + b._renderOff[0];
-          const by = b._proj[1] + b._renderOff[1];
-          const dx = ax - bx;
-          const dy = ay - by;
-          const d2 = dx*dx + dy*dy;
-          const min2 = separation * separation;
-          if (d2 < min2 && d2 > 0.01) {
-            const dist = Math.sqrt(d2);
-            const push = (separation - dist) * 0.5;
-            const ux = dx / dist;
-            const uy = dy / dist;
-            a._renderOff[0] += ux * push;
-            a._renderOff[1] += uy * push;
-            b._renderOff[0] -= ux * push;
-            b._renderOff[1] -= uy * push;
-          }
-        }
-      }
-    }
+    // v45 — decouple label scale from dot scale.
+    //   zoomGrowth: drives label font size, anchor offsets, hit-test threshold.
+    //               Capped at 4.0 so labels stay legible at extreme zoom.
+    //   dotGrowth:  bell curve. Grows from 1.0 → ~1.8 around 2× zoom (helps
+    //               clickability + visibility), then SHRINKS smoothly back
+    //               toward ~0.55 at full zoom so city/country labels breathe
+    //               and dots don't dominate the close-up reading view.
+    //               Smooth exp blend → no perceptible step.
+    const zoomGrowth = Math.max(1.0, Math.min(4.0, Math.sqrt(k / 5.5) + 0.3));
+    const _dotRaw   = Math.max(1.0, Math.min(1.8, Math.sqrt(k / 5.5) + 0.3));
+    const _peakK    = 11;
+    const _dotDecay = Math.exp(-Math.max(0, k - _peakK) / 25);
+    const dotGrowth = Math.max(0.55, _dotRaw * _dotDecay + 0.55 * (1 - _dotDecay));
+    // v45 — anti-overlap removed. Dots now sit at their TRUE projected lat/lon
+    // (modulo the locKey radial jitter from line 1787 which only spreads dupes
+    // sharing the same coordinate). This means dense regions (Europe) stay
+    // clustered at default zoom, and zoom-in NATURALLY separates them because
+    // the projection scales with view.scale. User explicitly requested this:
+    // "physically accurate on the map, so when zooming in their interdistance
+    // naturally expands."
+    //
+    // Previous behavior: a 4-pass O(n²) push-apart pulled dots toward an
+    // artificial minimum separation. That destroyed positional truth and made
+    // zoom-in feel useless (dots already spread, didn't separate further).
+    // const separation = baseR * 1.6 * dotGrowth;  // disabled in v45
     // Step 3: render each visible marker with scaled size + position + label
-    const showLabels = k >= 3.0 && !document.body.classList.contains('interacting');
+    // v45: labels stay visible during interaction (no blink on pan/pinch). The
+    // k >= 3.0 floor stays — at very far-out zoom labels would be sub-pixel.
+    const showLabels = k >= 3.0;
     _visible.forEach(d => {
       const x = d._proj[0] + d._renderOff[0];
       const y = d._proj[1] + d._renderOff[1];
       d._el.style.display = '';
-      d._el.setAttribute('transform','translate('+x+','+y+') scale('+zoomGrowth+')');
+      d._el.setAttribute('transform','translate('+x+','+y+') scale('+dotGrowth+')');
       const limbFade = Math.min(1, Math.max(0, (88 - d._dist)/20));
       const isDim = d._el.classList.contains('dim');
       d._el.style.opacity = isDim ? limbFade * 0.08 : limbFade;
       d._x = x; d._y = y;
       d._el.querySelector('.m-inner').removeAttribute('transform');
       if (d._label) {
-        if (showLabels && !isDim) {
-          // v29: scale font size with zoom — base 15 at default, up to 28 at 2× zoom
-          const labelSize = Math.min(28, Math.max(15, 15 * zoomGrowth));
-          d._label.style.display = 'inline';
-          d._label.setAttribute('x', x);
-          d._label.setAttribute('y', y + 10 * zoomGrowth + labelSize * 0.9);
-          d._label.setAttribute('font-size', labelSize + 'px');
-          d._label.style.opacity = limbFade;
-        } else {
-          d._label.style.display = 'none';
-        }
+        // v45: defer label positioning to placeLabels(). Stash render flags only.
+        d._labelOn = showLabels && !isDim;
+        d._labelFade = limbFade;
       }
     });
+    // v45 — 8-anchor label placement: each label tries 8 candidate positions
+    // (S preferred, then E/W, then N, then corners). The candidate with fewest
+    // overlaps vs already-placed labels wins. Greedy in invest-desc / x-asc
+    // order. No frame-to-frame state — fully deterministic per frame.
+    // Mobile-safe: O(n²) on 73 markers, ≈5300 AABB checks per frame at 60fps.
+    if (showLabels) {
+      // v45 — label base 15 → 12 (less shouty at default zoom; still grows
+      // with zoom up to a 36px cap).
+      const fs = Math.min(36, Math.max(12, 12 * zoomGrowth));
+      // Anchor offset uses dotGrowth (matches visual marker size, label sits
+      // just outside the dot at every zoom level).
+      const markerR = 8 * dotGrowth + 4;
+      // v45 — 16 anchor candidates: 8 close ring + 8 far ring. The far ring
+      // (at 2.4× marker radius + extra font padding) lets dense clusters
+      // (Boston/Bay/Europe/China) push residual labels out to a second tier
+      // when all 8 close positions are saturated by neighbours.
+      const far = markerR * 2.4 + fs * 0.5;
+      const anchors = [
+        { dx: 0,        dy: markerR + fs * 0.9,  ta: 'middle' },  // S
+        { dx: markerR,  dy: fs * 0.35,           ta: 'start'  },  // E
+        { dx: -markerR, dy: fs * 0.35,           ta: 'end'    },  // W
+        { dx: 0,        dy: -markerR - fs * 0.15,ta: 'middle' },  // N
+        { dx: markerR,  dy: markerR + fs * 0.7,  ta: 'start'  },  // SE
+        { dx: -markerR, dy: markerR + fs * 0.7,  ta: 'end'    },  // SW
+        { dx: markerR,  dy: -markerR,            ta: 'start'  },  // NE
+        { dx: -markerR, dy: -markerR,            ta: 'end'    },  // NW
+        // far ring (lower priority; only used when close ring all collide)
+        { dx: 0,        dy: far + fs * 0.9,      ta: 'middle' },  // S-far
+        { dx: far,      dy: fs * 0.35,           ta: 'start'  },  // E-far
+        { dx: -far,     dy: fs * 0.35,           ta: 'end'    },  // W-far
+        { dx: 0,        dy: -far - fs * 0.15,    ta: 'middle' },  // N-far
+        { dx: far,      dy: far + fs * 0.7,      ta: 'start'  },  // SE-far
+        { dx: -far,     dy: far + fs * 0.7,      ta: 'end'    },  // SW-far
+        { dx: far,      dy: -far,                ta: 'start'  },  // NE-far
+        { dx: -far,     dy: -far,                ta: 'end'    }   // NW-far
+      ];
+      const ranked = _visible
+        .filter(d => d._label && d._labelOn)
+        .sort((a, b) => (investRadius(b.invest) - investRadius(a.invest)) ||
+                        (a._x - b._x));
+      const placed = [];
+      _visible.forEach(d => {
+        if (d._label && !d._labelOn) d._label.style.display = 'none';
+      });
+      for (const d of ranked) {
+        const w = d.name.length * fs * 0.55 + 4;
+        const h = fs * 1.15;
+        let best = null, bestScore = Infinity;
+        for (let i = 0; i < anchors.length; i++) {
+          const a = anchors[i];
+          let bx;
+          if (a.ta === 'middle')      bx = d._x + a.dx - w/2;
+          else if (a.ta === 'start')  bx = d._x + a.dx;
+          else                        bx = d._x + a.dx - w;
+          const by = d._y + a.dy - h * 0.85;
+          let overlaps = 0;
+          for (const p of placed) {
+            if (bx < p.x + p.w && bx + w > p.x &&
+                by < p.y + p.h && by + h > p.y) {
+              overlaps++;
+              if (overlaps >= 2) break;
+            }
+          }
+          const score = overlaps * 10 + i;
+          if (score < bestScore) {
+            bestScore = score;
+            best = { a, bx, by, w, h };
+            if (overlaps === 0 && i === 0) break;
+          }
+        }
+        if (best) {
+          placed.push({ x: best.bx, y: best.by, w: best.w, h: best.h });
+          d._label.style.display = 'inline';
+          d._label.setAttribute('x', d._x + best.a.dx);
+          d._label.setAttribute('y', d._y + best.a.dy);
+          d._label.setAttribute('text-anchor', best.a.ta);
+          d._label.setAttribute('font-size', fs + 'px');
+          d._label.style.opacity = d._labelFade;
+          d._lanchor = best.a;
+          d._lbox = { x: best.bx, y: best.by, w: best.w, h: best.h };
+        }
+      }
+    } else {
+      _visible.forEach(d => { if (d._label) d._label.style.display = 'none'; });
+    }
 
     // v18: labels stay visible during interaction (the disappear IS the lag).
     // Their per-frame update is cheap on modern hardware; keep them flowing
@@ -2231,9 +2407,11 @@ function redraw(){
   let targetScale = null;            // null = not animating
   let zoomAnimRaf = null;
   let zoomCoastVel = 0;              // residual log-velocity from pinch release
-  const ZOOM_EASE_K = 0.22;          // fraction of remaining log-distance per frame (~140ms time-constant)
+  // v45 — softer ease (0.22 → 0.14) gives ~240ms time-constant for a more
+  // glide-y zoom feel on both wheel and pinch.
+  const ZOOM_EASE_K = 0.14;
   const ZOOM_STOP_EPS = 0.0015;      // stop when |log(target/current)| < this
-  const ZOOM_VEL_CAP = 0.12;
+  const ZOOM_VEL_CAP = 0.18;   // v45 — allow bigger initial coast velocity
 
   function ensureZoomAnim(){
     if (zoomAnimRaf) return;
@@ -2242,7 +2420,7 @@ function redraw(){
       let diff = targetScale != null ? Math.log(targetScale / view.scale) : 0;
       // Apply pinch-release coast: extra log-velocity that decays per frame
       const extra = zoomCoastVel;
-      zoomCoastVel *= 0.86;
+      zoomCoastVel *= 0.93;   // v45 — slower decay → longer coast (was 0.86)
       if (Math.abs(extra) < 0.001) zoomCoastVel = 0;
       // Move toward target + add coast contribution
       const dLog = diff * ZOOM_EASE_K + extra;
@@ -2484,8 +2662,72 @@ function redraw(){
   svg.addEventListener('pointercancel', endDrag);
   svg.addEventListener('pointerleave', endDrag);
 
+  // v45 — central nearest-marker pick. Replaces per-marker pointer-events for
+  // hover/click. Returns the visible marker closest to the pointer within
+  // `thresholdPx` CSS pixels, or null. Iterates the post-render position array
+  // exposed by redraw(). O(n) on 73 markers — fast.
+  function pickMarkerFromEvent(e, thresholdPx){
+    const list = window.__sdlLastVisible;
+    if (!list || !list.length) return null;
+    const rect = svg.getBoundingClientRect();
+    // viewBox = "0 0 1000 560", preserveAspectRatio = "xMidYMid meet"
+    const scale = Math.min(rect.width / 1000, rect.height / 560);
+    if (scale <= 0) return null;
+    const offX = (rect.width  - 1000 * scale) / 2;
+    const offY = (rect.height -  560 * scale) / 2;
+    const sx = (e.clientX - rect.left - offX) / scale;
+    const sy = (e.clientY - rect.top  - offY) / scale;
+    const svgThr = thresholdPx / scale;
+    const svgThr2 = svgThr * svgThr;
+    let best = null, bestD2 = svgThr2;
+    for (let i = 0; i < list.length; i++) {
+      const d = list[i];
+      if (!d._el || d._el.style.display === 'none') continue;
+      if (d._el.classList.contains('dim')) continue;
+      const dx = sx - d._x;
+      const dy = sy - d._y;
+      const d2 = dx*dx + dy*dy;
+      if (d2 < bestD2) { bestD2 = d2; best = d; }
+    }
+    return best;
+  }
+
+  // v45 — central hover. svg-level pointermove picks the precise marker by
+  // screen distance, replacing the per-marker mouseenter that mis-fires in
+  // clusters (the topmost overlapping hit-circle would win regardless of
+  // which dot was actually closest to the cursor).
+  let _hoveredPicked = null;
+  svg.addEventListener('pointermove', (e) => {
+    // Only meaningful for mouse/pen hover; touch is handled via tap → click.
+    if (e.pointerType === 'touch') return;
+    if (dragging && !dragging.pending) return;
+    const picked = pickMarkerFromEvent(e, 28);
+    if (picked) {
+      if (picked !== _hoveredPicked) {
+        _hoveredPicked = picked;
+        showTip(picked, e);
+      } else {
+        moveTip(e);
+      }
+    } else if (_hoveredPicked) {
+      _hoveredPicked = null;
+      hideTip();
+    }
+  }, { passive: true });
+
   // Tap/click on empty map (not on a marker) closes the tip
   svg.addEventListener('click', (e) => {
+    // v45: precision click — pick nearest marker by screen distance, route to
+    // showTip + the bottom-sheet/right-panel opener. Threshold larger on touch.
+    const isCoarse = window.matchMedia && window.matchMedia('(pointer:coarse)').matches;
+    const picked = pickMarkerFromEvent(e, isCoarse ? 36 : 28);
+    if (picked) {
+      showTip(picked, e);
+      if (window.__sheet && window.__sheet.openSheet) {
+        try { window.__sheet.openSheet(picked); } catch(_) {}
+      }
+      return;
+    }
     if (!e.target.closest('.marker')) {
       hideTip();
     }
@@ -3035,6 +3277,46 @@ function setupBottomSheet(){
   } else {
     attachDoubletapZoom();
   }
+})();
+
+/* v45 — theme toggle (dark default, light opt-in, persisted to localStorage). */
+window.__themeIIFE = 'started';
+(function(){
+  function applyTheme(t){
+    if (t === 'light') document.documentElement.setAttribute('data-theme', 'light');
+    else document.documentElement.removeAttribute('data-theme');
+    // Canvas captures CSS vars once; refresh + redraw on theme change.
+    if (window.__sdlRefreshTheme) { try { window.__sdlRefreshTheme(); } catch(e){} }
+    if (window.redrawRaf) { try { window.redrawRaf(); } catch(e){} }
+  }
+  try {
+    const saved = localStorage.getItem('sdl-map-theme');
+    if (saved === 'light' || saved === 'dark') applyTheme(saved);
+  } catch(e){}
+  function wire(){
+    const btn = document.getElementById('theme-toggle');
+    if (!btn) return false;
+    if (btn.dataset.themeWired) return true;
+    btn.dataset.themeWired = '1';
+    window.__themeIIFE = 'wired';
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+      const next = isLight ? 'dark' : 'light';
+      applyTheme(next);
+      try { localStorage.setItem('sdl-map-theme', next); } catch(e){}
+    });
+    return true;
+  }
+  // The main script is async (awaits world-atlas + china geo fetches) so DOM
+  // can land after this IIFE runs. Poll for up to 10s. Cheap, no observer.
+  let _tries = 0;
+  function tryWire(){
+    if (wire()) return;
+    if (++_tries > 100) return;          // 100 × 100ms = 10s
+    setTimeout(tryWire, 100);
+  }
+  tryWire();
 })();
 
 
