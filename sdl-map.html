@@ -2434,16 +2434,30 @@ function redraw(){
     // separates them; cursor precision handles close clusters).
     //
     // v45.f / v45.i — anti-overlap, scoped to two cases:
-    //   1. TOUCH: at all zooms (44 CSS px min) — fingers need space.
+    //   1. TOUCH at MEDIUM+ ZOOM (k > 3.5): ramp the min separation from
+    //      20 CSS px → 44 CSS px as zoom goes 3.5 → 10. At low zoom on
+    //      mobile (k ≤ 3.5) pins stay at their TRUE projected lat/lon —
+    //      otherwise the 44px floor at default zoom pushes European /
+    //      Boston / Bay clusters far from their physical positions and
+    //      the map reads as "floating dots" instead of a geographic map.
     //   2. DESKTOP at HIGH ZOOM (k > 8): 28 CSS px min so close clusters
     //      stay clickable. Low/medium zoom on desktop keeps dots at their
-    //      true projected lat/lon (per earlier user direction).
+    //      true projected lat/lon.
     const highZoomDesktop = !isTouch && k > 8;
-    if (isTouch || highZoomDesktop) {
+    const mediumZoomTouch = isTouch && k > 3.5;
+    if (mediumZoomTouch || highZoomDesktop) {
       const rect = svg.getBoundingClientRect();
       const scrScale = Math.min(rect.width / 1000, rect.height / 560);
       if (scrScale > 0 && _visible.length > 1) {
-        const minCssPx = isTouch ? 44 : 28;
+        // v45.p — touch ramps min separation with zoom (geographic at low,
+        // tap-friendly at high). Desktop stays at fixed 28px floor for k>8.
+        let minCssPx;
+        if (mediumZoomTouch) {
+          const t = Math.min(1, (k - 3.5) / 6.5);  // 0 at k=3.5, 1 at k=10+
+          minCssPx = 20 + t * 24;                  // 20 → 44 CSS px
+        } else {
+          minCssPx = 28;
+        }
         const minSvg = (minCssPx / scrScale) * 0.85;
         const minSvg2 = minSvg * minSvg;
         for (let pass = 0; pass < 8; pass++) {
@@ -2507,9 +2521,11 @@ function redraw(){
       // big at low zoom and visually blocked the dots themselves. They still
       // grow with zoomGrowth, capped at 32px so they stay readable when
       // user drills in deep.
-      // v45.n — smaller at every zoom. Was (13, 10) capped at 32.
-      const labelBaseFs = isTouch ? 10 : 8;
-      const fs = Math.min(20, Math.max(labelBaseFs, labelBaseFs * zoomGrowth));
+      // v45.p — mobile readability bump. Touch base 10 → 13 (small-screen
+      // visibility), desktop kept at 8. Cap raised to 22 so mobile labels
+      // don't shrink past 13 at low zoom.
+      const labelBaseFs = isTouch ? 13 : 8;
+      const fs = Math.min(22, Math.max(labelBaseFs, labelBaseFs * zoomGrowth));
       // Anchor offset uses dotGrowth (matches visual marker size, label sits
       // just outside the dot at every zoom level).
       const markerR = 8 * dotGrowth + 4;
