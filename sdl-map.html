@@ -152,7 +152,10 @@ aside.right.open{ border-left: 1px solid var(--rule); }
    so a click on top of them routes to the hovered marker instead of opening
    the drawer. Fixes UK ARIA / DP Technology and any other marker that
    projects close to the viewport edge. */
-body.marker-hovered .mob-toggle{ pointer-events: none; }
+/* v45.ag — desktop-only. On touch the marker-hovered class is set on tap
+   and never cleared (no pointermove on empty area), which left the pull-
+   tabs permanently dead after the first pin interaction. */
+body.marker-hovered:not(.is-touch) .mob-toggle{ pointer-events: none; }
 .mob-toggle.left{
   left: 0; transform: translateY(-50%);
   border-left: 0;
