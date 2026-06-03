@@ -2379,18 +2379,50 @@ function redraw(){
       ? DOT_TOUCH_FLOOR + Math.max(0, (k - 11) / 25) * 0.6
       : 0;
     const dotGrowth = isTouch ? Math.max(touchFloor, rawDotGrowth) : rawDotGrowth;
-    // v45 — anti-overlap removed. Dots now sit at their TRUE projected lat/lon
-    // (modulo the locKey radial jitter from line 1787 which only spreads dupes
-    // sharing the same coordinate). This means dense regions (Europe) stay
-    // clustered at default zoom, and zoom-in NATURALLY separates them because
-    // the projection scales with view.scale. User explicitly requested this:
-    // "physically accurate on the map, so when zooming in their interdistance
-    // naturally expands."
+    // v45 — desktop keeps dots at TRUE projected lat/lon (zoom naturally
+    // separates them; cursor precision handles close clusters).
     //
-    // Previous behavior: a 4-pass O(n²) push-apart pulled dots toward an
-    // artificial minimum separation. That destroyed positional truth and made
-    // zoom-in feel useless (dots already spread, didn't separate further).
-    // const separation = baseR * 1.6 * dotGrowth;  // disabled in v45
+    // v45.f — TOUCH ONLY: re-introduce a soft anti-overlap pass so close
+    // clusters stay tap-friendly. Target minimum separation = 44 CSS px
+    // (one fingertip), converted back to SVG units via the current scale.
+    // Capped at 8 iterations with early-out when no overlap remains.
+    if (isTouch) {
+      const rect = svg.getBoundingClientRect();
+      const scrScale = Math.min(rect.width / 1000, rect.height / 560);
+      if (scrScale > 0 && _visible.length > 1) {
+        const minCssPx = 44;
+        const minSvg = (minCssPx / scrScale) * 0.85;  // 85% so fingers don't need pristine separation
+        const minSvg2 = minSvg * minSvg;
+        for (let pass = 0; pass < 8; pass++) {
+          let movedAny = false;
+          for (let i = 0; i < _visible.length; i++) {
+            const a = _visible[i];
+            const ax = a._proj[0] + a._renderOff[0];
+            const ay = a._proj[1] + a._renderOff[1];
+            for (let j = i + 1; j < _visible.length; j++) {
+              const b = _visible[j];
+              const bx = b._proj[0] + b._renderOff[0];
+              const by = b._proj[1] + b._renderOff[1];
+              const dx = ax - bx;
+              const dy = ay - by;
+              const d2 = dx*dx + dy*dy;
+              if (d2 < minSvg2 && d2 > 0.0001) {
+                const dist = Math.sqrt(d2);
+                const push = (minSvg - dist) * 0.5;
+                const ux = dx / dist;
+                const uy = dy / dist;
+                a._renderOff[0] += ux * push;
+                a._renderOff[1] += uy * push;
+                b._renderOff[0] -= ux * push;
+                b._renderOff[1] -= uy * push;
+                movedAny = true;
+              }
+            }
+          }
+          if (!movedAny) break;
+        }
+      }
+    }
     // Step 3: render each visible marker with scaled size + position + label
     // v45: labels stay visible during interaction (no blink on pan/pinch). The
     // k >= 3.0 floor stays — at very far-out zoom labels would be sub-pixel.
