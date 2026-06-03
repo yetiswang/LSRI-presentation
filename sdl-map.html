@@ -3302,7 +3302,15 @@ function redraw(){
         if (_hoveredPicked && !fromLabel) {
           const dHeld = cursorDistToMarker(e, _hoveredPicked);
           const dNew  = cursorDistToMarker(e, picked);
-          if (dNew > dHeld - 10) {
+          // v45.af — dense-cluster fix. The 10 CSS-px stickiness was
+          // unbeatable in tight clusters (UK, Boston) where pins sit
+          // within 10–20 CSS-px of each other. Middle pins could never
+          // win hover from outer pins. Carve-out: if cursor is essentially
+          // on the new pin (≤6 CSS-px from its centre = inside the dot),
+          // switch immediately regardless of held distance. Jitter
+          // protection still applies for normal cursor drift outside
+          // the dot itself.
+          if (dNew > 6 && dNew > dHeld - 10) {
             moveTip(e);
             return;
           }
