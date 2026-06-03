@@ -2067,13 +2067,24 @@ window.SDL_CATEGORIES = {
     mLabel.setAttribute('class','sdl-label');
     mLabel.setAttribute('text-anchor','middle');
     mLabel.style.display = 'none';
-    // v45.u — short label form for chunky touch sizes. Strip parenthetical
-    // sub-titles and after-slash sub-names, then cap at ~28 chars.
+    // v45.ad — short label form. Strip parenthetical sub-titles and
+    // after-slash sub-names. If the result is still long AND starts with
+    // an all-caps acronym (≥3 chars), collapse to just the acronym —
+    // e.g. "DIFFER Autonomous Energy Materials Discovery (Süleyman Er)"
+    // → "DIFFER". Otherwise truncate at 28 chars with ellipsis.
     function shortenLabel(name){
       let s = name;
       s = s.replace(/\s*\([^)]*\)\s*/g, ' ').trim();   // drop "(...)"
       s = s.split(/\s*\/\s*/)[0].trim();                // keep before first "/"
-      if (s.length > 28) s = s.slice(0, 27).trim() + '…';
+      if (s.length > 28) {
+        const firstWord = s.split(/\s+/)[0];
+        // All-caps / hyphen / digit acronym (DIFFER, BIG-MAP, NIST, etc.)
+        if (firstWord.length >= 3 && /^[A-Z][A-Z0-9\-]+$/.test(firstWord)) {
+          s = firstWord;
+        } else {
+          s = s.slice(0, 27).trim() + '…';
+        }
+      }
       return s;
     }
     d._labelShort = shortenLabel(d.name);
