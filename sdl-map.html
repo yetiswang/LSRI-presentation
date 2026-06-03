@@ -3197,13 +3197,25 @@ function redraw(){
   // rather than the absolute closest by Euclidean distance. If no pin in
   // that direction, wraps to the farthest pin in the opposite direction —
   // snake-like coverage of the visible cluster.
+  // v45.o — spatialPick now walks the FULL data array, projecting each pin
+  // live, so high zoom (where many pins fall out of __sdlLastVisible) still
+  // has neighbours to walk through. Pins on the far side of the globe are
+  // skipped (projection returns NaN). The chosen pin is then panned into
+  // view by flyToPin() below.
+  function projectLive(d){
+    // projection is the d3 orthographic in scope; returns [x, y] in viewBox
+    // coords or NaN/undef for the back of the globe.
+    const p = projection([d.lon, d.lat]);
+    if (!p || isNaN(p[0]) || isNaN(p[1])) return null;
+    return p;
+  }
   function spatialPick(anchor, direction){
-    const list = window.__sdlLastVisible || [];
-    if (!anchor || list.length < 2) return null;
+    if (!anchor) return null;
+    const list = DATA;                       // ALL pins, not just on-screen
+    const aProj = projectLive(anchor) || [anchor._x, anchor._y];
+    const ax = aProj[0], ay = aProj[1];
     let best = null, bestScore = Infinity;
-    function score(d, dir){
-      const dx = d._x - anchor._x;
-      const dy = d._y - anchor._y;
+    function score(dx, dy, dir){
       let main, perp;
       if (dir === 'left')       { if (dx >= -2) return null; main = -dx; perp = Math.abs(dy); }
       else if (dir === 'right') { if (dx <=  2) return null; main =  dx; perp = Math.abs(dy); }
@@ -3213,7 +3225,9 @@ function redraw(){
     }
     for (const d of list) {
       if (d === anchor) continue;
-      const s = score(d, direction);
+      const p = projectLive(d);
+      if (!p) continue;                      // back of globe
+      const s = score(p[0] - ax, p[1] - ay, direction);
       if (s != null && s < bestScore) { bestScore = s; best = d; }
     }
     if (best) return best;
@@ -3223,17 +3237,43 @@ function redraw(){
     let farBest = null, farScore = -Infinity;
     for (const d of list) {
       if (d === anchor) continue;
-      const dx = d._x - anchor._x;
-      const dy = d._y - anchor._y;
+      const p = projectLive(d);
+      if (!p) continue;
+      const dx = p[0] - ax, dy = p[1] - ay;
       let main, perp;
       if (opposite === 'left')       { if (dx >= -2) continue; main = -dx; perp = Math.abs(dy); }
       else if (opposite === 'right') { if (dx <=  2) continue; main =  dx; perp = Math.abs(dy); }
       else if (opposite === 'up')    { if (dy >= -2) continue; main = -dy; perp = Math.abs(dx); }
       else                            { if (dy <=  2) continue; main =  dy; perp = Math.abs(dx); }
-      const s = main - perp * 1.5;   // farthest main, but small perp drift
+      const s = main - perp * 1.5;
       if (s > farScore) { farScore = s; farBest = d; }
     }
     return farBest;
+  }
+  // v45.o — gently pan the globe so the picked pin sits near screen centre.
+  // Only fires when the pin is outside the visible viewBox (i.e. arrow
+  // navigation crossed an edge or jumped to the back of the globe).
+  let _flyToPinRaf = null;
+  function flyToPin(d){
+    const p = projectLive(d);
+    const inFrame = p && p[0] > 80 && p[0] < 920 && p[1] > 60 && p[1] < 500;
+    if (inFrame) return;                     // already on screen, no pan needed
+    if (_flyToPinRaf) cancelAnimationFrame(_flyToPinRaf);
+    const startRot = [...view.rotate];
+    const targetRot = [-d.lon, -d.lat, 0];
+    const t0 = performance.now();
+    const duration = 420;                    // snappy, not cinematic
+    function step(now){
+      const t = Math.min(1, (now - t0) / duration);
+      const e = t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2;
+      view.rotate[0] = startRot[0] + (targetRot[0] - startRot[0]) * e;
+      view.rotate[1] = startRot[1] + (targetRot[1] - startRot[1]) * e;
+      projection.rotate(view.rotate);
+      redrawRaf();
+      if (t < 1) _flyToPinRaf = requestAnimationFrame(step);
+      else _flyToPinRaf = null;
+    }
+    _flyToPinRaf = requestAnimationFrame(step);
   }
   function ensureKbdHint(){
     if (document.querySelector('.kbd-hint')) return;
@@ -3268,6 +3308,10 @@ function redraw(){
       clientY: rect.top  + offY + marker._y * scrScale
     };
     if (openSheet) {
+      // v45.o — if the pin is currently off-screen (high zoom edge or back
+      // of globe), pan to centre it BEFORE opening the sheet, so the user
+      // sees what they just selected.
+      try { flyToPin(marker); } catch(_) {}
       // Full route: opens bottom-sheet (mobile + desktop), also drives the tip.
       routePickedMarker(marker, fakeEvt);
     } else {
