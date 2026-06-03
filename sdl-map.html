@@ -2731,10 +2731,21 @@ function redraw(){
         // Leader line: draw when label center is far enough from the dot that
         // the visual link is no longer obvious. Threshold scales with fs so
         // big labels at high zoom still get a leader when truly displaced.
+        // v45.v — UPPER bound: if leader would exceed maxLeaderDist (≈ 5 × fs
+        // or 120 SVG-units on narrow viewports), HIDE the label instead of
+        // drawing a tract-line across the map. Cleaner at low zoom + chunky
+        // labels where dense clusters push labels far through relaxation.
+        const maxLeaderDist = Math.max(fs * 5, 120);
         if (d._leader) {
           const lcx = p.x + p.w / 2;
           const lcy = p.y + p.h / 2;
           const dist = Math.hypot(lcx - d._x, lcy - d._y);
+          if (dist > maxLeaderDist) {
+            // Label would be too far from its pin; suppress both label + leader.
+            d._label.style.display = 'none';
+            d._leader.style.display = 'none';
+            continue;
+          }
           if (dist > markerR * 2 + fs * 0.4) {
             // Stop the line at the label's bbox edge (not the center) so it
             // doesn't visually pierce the text.
@@ -2831,7 +2842,10 @@ function redraw(){
   // the trailing motion. Snappy + glide-y = best of both.
   const ZOOM_EASE_K = 0.22;
   const ZOOM_STOP_EPS = 0.0015;      // stop when |log(target/current)| < this
-  const ZOOM_VEL_CAP = 0.30;   // v45.b — allow much bigger initial coast velocity
+  // v45.v — damp coast velocity cap 0.30 → 0.15. Android Chrome's pinch
+  // updates are higher-frequency than desktop trackpads, so the residual
+  // coast velocity after release was over-shooting the intended scale.
+  const ZOOM_VEL_CAP = 0.15;
 
   function ensureZoomAnim(){
     if (zoomAnimRaf) return;
@@ -3521,8 +3535,11 @@ function redraw(){
     const rect = svg.getBoundingClientRect();
     const sx = (e.clientX - rect.left) * (1000 / rect.width);
     const sy = (e.clientY - rect.top)  * (560  / rect.height);
-    // Per-tick magnitude tuned at v45.d level.
-    const factor = Math.exp(-e.deltaY * 0.0055);
+    // Per-tick magnitude. v45.v — Android Chrome reports much larger deltaY
+    // per pinch tick than desktop wheels; halved the multiplier 0.0055 →
+    // 0.0025 so a single tick is ~22% zoom change instead of ~56%. Desktop
+    // wheel-mouse users get slightly slower zoom but still responsive.
+    const factor = Math.exp(-e.deltaY * 0.0025);
     zoomAnchored(sx, sy, factor);
     zHint.classList.add('fade');
     redrawRaf();
