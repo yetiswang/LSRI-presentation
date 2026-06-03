@@ -401,9 +401,11 @@ aside.left{ grid-area:left; }
   background: var(--surface-overlay);
   padding: 6px 14px; border-radius: 14px; border: 1px solid var(--rule);
   z-index: 80; pointer-events: none;
-  opacity: 0; transition: opacity .25s ease;
+  opacity: 0; transition: opacity .35s ease .15s;
 }
-body.kbd-mode .kbd-hint{ opacity: 0.85; }
+/* v45.k — hint shows whenever a card is open. Subtle (0.65), fades in
+   after a small delay so it doesn't appear instantly. */
+body.marker-hovered .kbd-hint{ opacity: 0.65; }
 .marker .ring{ fill:none; stroke:currentColor; stroke-width:1; opacity:0.4; }
 .marker .core{ fill:currentColor; }
 .marker.dim{ opacity:0.08; pointer-events:none; }
@@ -3181,21 +3183,26 @@ function redraw(){
   // v45.h — keyboard cycle through visible pins (foolproof for dense clusters).
   // ←/↑ = prev, →/↓ = next, Enter/Space = pin, Esc = clear.
   let _kbdSelected = null;
-  function sortedVisibleForKbd(){
+  // v45.k — sort visible markers by distance from the given anchor marker.
+  // The cycle then walks nearest-neighbour order, which feels natural when
+  // exploring a cluster.
+  function sortedNearAnchor(anchor){
     const list = window.__sdlLastVisible || [];
-    return [...list].sort((a, b) => (a._x - b._x) || (a._y - b._y));
+    if (!anchor) return [...list].sort((a, b) => (a._x - b._x) || (a._y - b._y));
+    return [...list].sort((a, b) => {
+      const da = (a._x - anchor._x) ** 2 + (a._y - anchor._y) ** 2;
+      const db = (b._x - anchor._x) ** 2 + (b._y - anchor._y) ** 2;
+      return da - db;
+    });
   }
-  function kbdHint(){
-    if (document.body.classList.contains('kbd-mode')) return;
-    let el = document.querySelector('.kbd-hint');
-    if (!el) {
-      el = document.createElement('div');
-      el.className = 'kbd-hint';
-      el.textContent = '← →  cycle pins  ·  Enter  open  ·  Esc  dismiss';
-      document.body.appendChild(el);
-    }
-    document.body.classList.add('kbd-mode');
+  function ensureKbdHint(){
+    if (document.querySelector('.kbd-hint')) return;
+    const el = document.createElement('div');
+    el.className = 'kbd-hint';
+    el.textContent = '← →  cycle nearby  ·  Esc  dismiss';
+    document.body.appendChild(el);
   }
+  ensureKbdHint();
   function kbdClearVisual(){
     document.querySelectorAll('.marker.kbd-focus').forEach(el => el.classList.remove('kbd-focus'));
   }
@@ -3220,33 +3227,42 @@ function redraw(){
     };
     showTip(marker, fakeEvt);
   }
+  // v45.k — kbdCycle now requires a current selection (a tip must be open).
+  // Sort by distance from the currently selected marker so the cycle walks
+  // nearest-neighbour, matching the user's mental model of "the next pin
+  // I see nearby."
   function kbdCycle(delta){
-    const list = sortedVisibleForKbd();
-    if (!list.length) return;
-    const curIdx = _kbdSelected ? list.indexOf(_kbdSelected) : -1;
-    const idx = (curIdx < 0)
-      ? (delta > 0 ? 0 : list.length - 1)
-      : ((curIdx + delta + list.length) % list.length);
+    const anchor = _hoveredPicked;
+    if (!anchor) return;   // no open card → arrows pass through (browser default)
+    const list = sortedNearAnchor(anchor);
+    if (list.length < 2) return;
+    const curIdx = list.indexOf(anchor);
+    // idx 0 is the anchor itself; advance by delta from there.
+    const idx = ((curIdx + delta) + list.length) % list.length;
     kbdSelect(list[idx]);
   }
   document.addEventListener('keydown', (e) => {
     const tag = e.target && e.target.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target && e.target.isContentEditable)) return;
+    // v45.k — arrows ONLY act on the cycle when a tip is currently open.
+    // Otherwise let the browser handle them (page scroll, etc.).
     if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-      e.preventDefault(); kbdHint(); kbdCycle(1);
+      if (!_hoveredPicked) return;
+      e.preventDefault(); kbdCycle(1);
     } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-      e.preventDefault(); kbdHint(); kbdCycle(-1);
+      if (!_hoveredPicked) return;
+      e.preventDefault(); kbdCycle(-1);
     } else if (e.key === 'Escape') {
-      if (_kbdSelected) kbdSelect(null);
-    } else if ((e.key === 'Enter' || e.key === ' ') && _kbdSelected) {
+      if (_hoveredPicked) { kbdSelect(null); hideTip(); }
+    } else if ((e.key === 'Enter' || e.key === ' ') && _hoveredPicked) {
       e.preventDefault();
       const rect = svg.getBoundingClientRect();
       const scrScale = Math.min(rect.width / 1000, rect.height / 560);
       const offX = (rect.width - 1000 * scrScale) / 2;
       const offY = (rect.height -  560 * scrScale) / 2;
-      routePickedMarker(_kbdSelected, {
-        clientX: rect.left + offX + _kbdSelected._x * scrScale,
-        clientY: rect.top  + offY + _kbdSelected._y * scrScale
+      routePickedMarker(_hoveredPicked, {
+        clientX: rect.left + offX + _hoveredPicked._x * scrScale,
+        clientY: rect.top  + offY + _hoveredPicked._y * scrScale
       });
     }
   });
