@@ -97,53 +97,85 @@ aside{
   padding: 0;
   border: 0;
   overflow: hidden;
+  visibility: hidden;            /* v45.e — fully hidden when closed */
   background: var(--bg);
   transition: width .28s cubic-bezier(.2,.8,.2,1),
               padding .28s cubic-bezier(.2,.8,.2,1),
-              border-width .28s cubic-bezier(.2,.8,.2,1);
+              border-width .28s cubic-bezier(.2,.8,.2,1),
+              visibility 0s linear .28s;   /* delay until width settles */
   font-size: 14px;
-  max-height: calc(100vh - 0px);
-  overflow-y: hidden;
 }
 aside.open{
-  width: clamp(260px, 22vw, 320px);
+  width: clamp(280px, 22vw, 340px);
   padding: 24px 22px 24px;
   overflow-y: auto;
+  visibility: visible;
+  transition: width .28s cubic-bezier(.2,.8,.2,1),
+              padding .28s cubic-bezier(.2,.8,.2,1),
+              border-width .28s cubic-bezier(.2,.8,.2,1),
+              visibility 0s linear 0s;
 }
 aside.left.open{ border-right: 1px solid var(--rule); }
 aside.right.open{ border-left: 1px solid var(--rule); }
-/* Toggle buttons — floating top-left / top-right of viewport. Independent
-   of sidebar state so user can collapse + expand each side separately. */
+/* v45.e — pull-tab buttons. Edge-anchored vertical handles that invite a
+   pull-out gesture. Mobile reverts to floating pill style (overrides below). */
 .mob-toggle{
   position:fixed;
-  top: 100px;
+  top: 50%;
   z-index:55;
   background:var(--surface-overlay);
   border:1px solid var(--rule);
   color:var(--ink);
-  padding: 9px 14px;
-  border-radius: 20px;
+  padding: 14px 8px;
   font-family:var(--font-sans);
-  font-size:13px;
-  font-weight:500;
-  letter-spacing:0.02em;
+  font-size:11px;
+  font-weight:600;
+  letter-spacing:0.12em;
+  text-transform:uppercase;
   cursor:pointer;
-  box-shadow: 0 4px 14px rgba(0,0,0,0.18);
-  min-height: 38px;
-  display:flex; align-items:center; gap:7px;
-  transition: background .15s, border-color .15s, transform .12s, left .28s cubic-bezier(.2,.8,.2,1), right .28s cubic-bezier(.2,.8,.2,1);
+  box-shadow: 0 4px 18px rgba(0,0,0,0.18);
+  min-width: 32px;
+  display:flex; flex-direction:column; align-items:center; gap:6px;
+  transition: background .15s, border-color .15s, transform .15s,
+              left .28s cubic-bezier(.2,.8,.2,1),
+              right .28s cubic-bezier(.2,.8,.2,1);
 }
-.mob-toggle:hover{ border-color: var(--ink-3); }
-.mob-toggle:active{ transform: scale(0.96); }
-.mob-toggle.left{ left:14px; }
-.mob-toggle.right{ right:14px; }
-/* When a side is open the toggle sits next to the sidebar edge. */
-body.left-open .mob-toggle.left{ left: calc(clamp(260px, 22vw, 320px) + 14px); }
-body.right-open .mob-toggle.right{ right: calc(clamp(260px, 22vw, 320px) + 14px); }
+.mob-toggle .chev{ font-size:14px; line-height:1; transition: transform .25s; }
+.mob-toggle .lbl{
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  white-space: nowrap;
+}
+.mob-toggle:hover{ border-color: var(--ink-3); background: var(--bg-3); }
+.mob-toggle:active{ transform: translateY(-50%) scale(.95); }
+.mob-toggle.left{
+  left: 0; transform: translateY(-50%);
+  border-left: 0;
+  border-radius: 0 14px 14px 0;
+  padding-left: 6px;
+}
+.mob-toggle.right{
+  right: 0; transform: translateY(-50%);
+  border-right: 0;
+  border-radius: 14px 0 0 14px;
+  padding-right: 6px;
+}
+.mob-toggle.left:hover{ transform: translateY(-50%) translateX(2px); }
+.mob-toggle.right:hover{ transform: translateY(-50%) translateX(-2px); }
+/* Chevron orientation: pointing INTO the map when closed (invites pull),
+   pointing OUT toward the edge when open (offers to close). */
+body:not(.left-open)  .mob-toggle.left  .chev::before { content: '\25B6'; } /* ▶ */
+body.left-open        .mob-toggle.left  .chev::before { content: '\25C0'; } /* ◀ */
+body:not(.right-open) .mob-toggle.right .chev::before { content: '\25C0'; } /* ◀ */
+body.right-open       .mob-toggle.right .chev::before { content: '\25B6'; } /* ▶ */
+/* When a side is open the tab follows the sidebar edge. */
+body.left-open  .mob-toggle.left  { left: clamp(280px, 22vw, 340px); }
+body.right-open .mob-toggle.right { right: clamp(280px, 22vw, 340px); }
 .mob-toggle .badge{
+  position: absolute; top: -6px; right: -6px;
   background:var(--c-commercial); color:#fff;
-  font-size:11px; padding: 1px 7px; border-radius:10px;
-  min-width:16px; text-align:center;
+  font-size:10px; padding: 1px 5px; border-radius:10px;
+  min-width:14px; text-align:center;
 }
 /* Drawer close X kept for in-sidebar close affordance. */
 .drawer-close{
@@ -522,8 +554,15 @@ footer .ident a.author:hover { color: var(--ink); border-bottom-color: var(--ink
     padding: 14px 16px 12px;
     gap: 10px;
   }
-  .brand h1 { font-size: 24px; line-height: 1.2; font-weight: 600; }
+  /* v45.e — title was overflowing the narrow top bar. Drop the size + shorten
+     the eyebrow line; let the heading wrap naturally on multi-line. */
+  .brand h1 { font-size: 18px; line-height: 1.2; font-weight: 600;
+    overflow-wrap: anywhere; word-break: break-word; max-width: 100%; }
   .brand .eyebrow { font-size: 10px; }
+  .brand-lockup{ flex-wrap: wrap; align-items: flex-start; gap: 10px; max-width: 100%; }
+  .tue-logo img{ height: 28px !important; }
+  .header-right{ width: 100%; flex-wrap: wrap; justify-content: space-between; }
+  .theme-toggle{ width: 36px !important; height: 36px !important; }
   .counts {
     width: 100%;
     gap: 14px;
@@ -745,57 +784,21 @@ footer .ident a.author:hover { color: var(--ink); border-bottom-color: var(--ink
      · Zoom + region nav anchored to bottom-right (thumb zone)
    ============================================================ */
 @media (max-width: 900px) {
-  /* Reset the v2 bottom-floating toggle pattern */
+  /* v45.e — mobile pull-tabs: smaller + with both chevron + abbreviation */
   .mob-toggle {
-    bottom: auto !important;
-    left: auto !important;
-    right: auto !important;
-    padding: 0 !important;
-    border-radius: 6px !important;
-    background: transparent !important;
-    border: 0 !important;
-    box-shadow: none !important;
-    backdrop-filter: none !important;
-    min-height: 44px;
-    min-width: 44px;
-    width: 44px;
-    height: 44px;
-    font-size: 22px !important;
-    color: var(--ink) !important;
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    z-index: 30;
-    display: flex !important;
-    align-items: center;
-    justify-content: center;
-  }
-  .mob-toggle.left  { left: 6px !important;  }
-  /* v8: force touch responsiveness on header icon buttons */
-  .mob-toggle {
-    pointer-events: auto !important;
-    touch-action: manipulation !important;
+    padding: 12px 7px !important;
+    min-width: 30px !important;
+    font-size: 10px !important;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.30) !important;
+    pointer-events: auto;
+    touch-action: manipulation;
     -webkit-tap-highlight-color: rgba(255,255,255,0.1);
-    z-index: 100 !important;
-    cursor: pointer;
   }
-  .mob-toggle:active { background: rgba(255,255,255,0.06) !important; }
-
-  .mob-toggle.right { right: 6px !important; }
-  .mob-toggle .badge {
-    position: absolute;
-    top: 4px;
-    right: 2px;
-    background: var(--accent);
-    color: var(--bg);
-    border-radius: 9px;
-    padding: 1px 5px;
-    font-size: 9px;
-    font-weight: 700;
-    min-width: 14px;
-    text-align: center;
-    line-height: 1.3;
-  }
+  .mob-toggle .lbl{ font-size:10px !important; letter-spacing:0.1em !important; }
+  .mob-toggle.left{ left:0 !important; border-left:0 !important; border-radius:0 12px 12px 0 !important; }
+  .mob-toggle.right{ right:0 !important; border-right:0 !important; border-radius:12px 0 0 12px !important; }
+  body.left-open .mob-toggle.left { left: 0 !important; }
+  body.right-open .mob-toggle.right { right: 0 !important; }
   /* Title bar: a single clean strip at the top of the page */
   header.top {
     position: relative;
@@ -1613,8 +1616,8 @@ window.SDL_CATEGORIES = {
   const app = document.getElementById('app');
   app.innerHTML = `
     <header class="top">
-    <button class="mob-toggle mob-only left" id="mob-filters" aria-label="Open filters">☰ <span class="lbl">Filters</span></button>
-    <button class="mob-toggle mob-only right" id="mob-selected" aria-label="Open selected list">★ <span class="lbl">Selected</span> <span class="badge" id="mob-selected-n">0</span></button>
+    <button class="mob-toggle mob-only left" id="mob-filters" aria-label="Open filters"><span class="chev"></span><span class="lbl">Filters</span></button>
+    <button class="mob-toggle mob-only right" id="mob-selected" aria-label="Open selected list"><span class="chev"></span><span class="lbl">Selected</span><span class="badge" id="mob-selected-n">0</span></button>
       <div class="brand-lockup">
         <a class="tue-logo" href="https://www.tue.nl/" target="_blank" rel="noopener" aria-label="TU Eindhoven">
           <img src="img/tue-logo.png" alt="TU Eindhoven">
@@ -2310,6 +2313,16 @@ function redraw(){
     const center = [-view.rotate[0], -view.rotate[1]];
 
     // v24 marker pass — projection, zoom-scaled radius, anti-overlap, label visibility
+    // v45.e — start every frame by hiding ALL labels + leaders. The visible
+    // loop turns them back on only for markers that pass the frame check.
+    // This kills the "stuck leader line residue" bug on mobile deep zoom
+    // where a marker would drop out of _visible between frames but its
+    // leader was last drawn and never cleared.
+    DATA.forEach(d => {
+      if (d._label) d._label.style.display = 'none';
+      if (d._leader) d._leader.style.display = 'none';
+      if (d._el) d._el.style.display = 'none';
+    });
     // Step 1: project all markers, mark visibility, compute base offsets
     const _visible = [];
     // v45: expose to outer scope so pickMarkerFromEvent can use the post-anti-
@@ -2353,7 +2366,12 @@ function redraw(){
     const _peakK    = 11;
     const _dotDecay = Math.exp(-Math.max(0, k - _peakK) / 25);
     const rawDotGrowth = Math.max(0.55, _dotRaw * _dotDecay + 0.55 * (1 - _dotDecay));
-    const dotGrowth = isTouch ? Math.max(DOT_TOUCH_FLOOR, rawDotGrowth) : rawDotGrowth;
+    // v45.e — at deep zoom on touch, ramp the floor UP so dots stay tap-friendly.
+    // At default zoom, floor is 0.85; at k≥30 (very deep), floor 1.3.
+    const touchFloor = isTouch
+      ? DOT_TOUCH_FLOOR + Math.max(0, (k - 11) / 25) * 0.6
+      : 0;
+    const dotGrowth = isTouch ? Math.max(touchFloor, rawDotGrowth) : rawDotGrowth;
     // v45 — anti-overlap removed. Dots now sit at their TRUE projected lat/lon
     // (modulo the locKey radial jitter from line 1787 which only spreads dupes
     // sharing the same coordinate). This means dense regions (Europe) stay
@@ -2743,6 +2761,16 @@ function redraw(){
     const [a, b] = [arr[0], arr[1]];
     return Math.hypot(b.x - a.x, b.y - a.y);
   }
+  // v45.e — pinch midpoint in SVG coords, for cursor-anchored pinch zoom.
+  function pinchMidpointSvg(){
+    if (pointers.size < 2) return null;
+    const arr = [...pointers.values()];
+    const [a, b] = [arr[0], arr[1]];
+    const rect = svg.getBoundingClientRect();
+    const mx = ((a.x + b.x) / 2 - rect.left) * (1000 / rect.width);
+    const my = ((a.y + b.y) / 2 - rect.top)  * (560  / rect.height);
+    return [mx, my];
+  }
   // v27: pointer state pre-arms on touch start; drag/pinch only commits after
   // movement crosses a threshold. Lets fingers land on pins without blocking drag,
   // and lets the browser fire 'click' naturally for taps that don't move enough.
@@ -2800,22 +2828,28 @@ function redraw(){
       });
     }
     if (pointers.size >= 2 && pinchStart) {
-      // Pinch zoom — v43: direct view.scale during gesture; release feeds coast.
+      // Pinch zoom — v45.e: anchored to the pinch midpoint (Maps-style).
       const d = pinchDist();
       if (d > 0 && pinchStart.dist > 0) {
-        const newScale = clampScale(pinchStart.viewScale * (d / pinchStart.dist));
+        const desiredScale = clampScale(pinchStart.viewScale * (d / pinchStart.dist));
         const now = performance.now();
         if (pinchStart.lastT && view.scale > 0) {
           const dt = now - pinchStart.lastT;
           if (dt > 0 && dt < 100) {
-            const dLog = Math.log(newScale / view.scale);
-            // log-scale velocity per ~16ms frame, smoothed
+            const dLog = Math.log(desiredScale / view.scale);
             zoomCoastVel = zoomCoastVel * 0.5 + (dLog * (16 / dt)) * 0.5;
             zoomCoastVel = Math.max(-ZOOM_VEL_CAP, Math.min(ZOOM_VEL_CAP, zoomCoastVel));
           }
         }
         pinchStart.lastT = now;
-        view.scale = newScale;
+        // Anchor the rotation update so the pinch midpoint stays under both fingers.
+        const mid = pinchMidpointSvg();
+        if (mid) {
+          const factor = desiredScale / view.scale;
+          zoomAnchored(mid[0], mid[1], factor);
+        } else {
+          view.scale = desiredScale;
+        }
         redrawRaf();
       }
       return;
@@ -2977,27 +3011,28 @@ function redraw(){
   // Tap/click on empty map (not on a marker) closes the tip
   svg.addEventListener('click', (e) => {
     if (wasDirectTapClick(e)) return;
-    // v45.d — hover-click consistency: if a hover tip is currently up and the
-    // click landed within a small radius of the cursor's last hover position,
-    // prefer the hovered marker. Avoids "I clicked the dot I see highlighted
-    // but a neighbour fired" in dense clusters.
-    let picked = null;
-    if (_hoveredPicked && _lastHoverEvt) {
-      const dx = e.clientX - _lastHoverEvt.clientX;
-      const dy = e.clientY - _lastHoverEvt.clientY;
-      if (dx*dx + dy*dy < 64 /* within 8 CSS px */) {
-        picked = _hoveredPicked;
-      }
-    }
-    if (!picked) {
-      picked = pickMarkerFromEvent(e, pickRadiusForEvent(e));
-    }
+    // v45.e — hover-click consistency: WHATEVER is currently hovered wins.
+    // Browsers fire pointermove before click, so _hoveredPicked reflects the
+    // marker the user is seeing the tip for. No distance check — small cursor
+    // jitter between move and click no longer rerolls the pick. If the cursor
+    // moved away, pointermove already cleared _hoveredPicked = null.
+    let picked = _hoveredPicked || pickMarkerFromEvent(e, pickRadiusForEvent(e));
     if (picked) {
       routePickedMarker(picked, e);
       return;
     }
     if (!e.target.closest('.marker')) {
       hideTip();
+    }
+    // v45.e — click on empty map area collapses both sidebars if either is
+    // open. Discoverability cost is low (toggle tabs are still visible).
+    const lOpen = document.querySelector('aside.left.open');
+    const rOpen = document.querySelector('aside.right.open');
+    if ((lOpen || rOpen) && !e.target.closest('aside') && !e.target.closest('.mob-toggle')) {
+      if (lOpen) lOpen.classList.remove('open');
+      if (rOpen) rOpen.classList.remove('open');
+      document.body.classList.remove('left-open');
+      document.body.classList.remove('right-open');
     }
   });
 
@@ -3014,23 +3049,50 @@ function redraw(){
   }, { passive: true });
 
 
-  // Wheel to zoom — v43: target-scale animator gives smooth coast on both
-  // discrete mouse-wheel ticks AND continuous trackpad streams.
+  // v45.e — Google-Maps-style cursor-anchored wheel zoom. Each wheel event
+  // both changes the scale AND rotates the globe so that the lat/lon under
+  // the cursor stays under the cursor. Iterative compensation (4 passes) is
+  // enough for orthographic at any zoom.
+  function zoomAnchored(svgX, svgY, factor){
+    const inv = (projection.invert && projection.invert([svgX, svgY])) || null;
+    const newScale = clampScale(view.scale * factor);
+    view.scale = newScale;
+    projection.scale(newScale);
+    if (inv) {
+      for (let i = 0; i < 5; i++) {
+        const cur = projection(inv);
+        if (!cur) break;
+        const dx = cur[0] - svgX;
+        const dy = cur[1] - svgY;
+        if (dx*dx + dy*dy < 0.25) break;
+        const k = view.scale / BASE_SCALE;
+        const cosPhi = Math.max(0.18, Math.cos(view.rotate[1] * Math.PI / 180));
+        // SVG-units → degrees, scaled inversely by zoom
+        const degPerUnit = (180 / Math.PI) / (BASE_SCALE * k);
+        const dLam = dx * degPerUnit / cosPhi;
+        const dPhi = dy * degPerUnit;
+        // Move the centre TOWARD the cursor's lat/lon to bring it back.
+        view.rotate[0] -= dLam;
+        view.rotate[1] = Math.max(-89, Math.min(89, view.rotate[1] + dPhi));
+        projection.rotate(view.rotate);
+      }
+    }
+  }
+
   svg.addEventListener('wheel', (e) => {
     e.preventDefault();
-    zoomCoastVel = 0;   // wheel input dominates any residual pinch coast
-    // v45.d — bigger per-tick magnitude (0.0028 → 0.0055) so each wheel
-    // notch covers a large zoom step. Combined with a snappy ease (K=0.22)
-    // and a long coast (decay 0.97), zoom feels both responsive and gliding.
-    const delta = -e.deltaY * 0.0055;
-    // Each wheel event moves the target forward; the animator catches up.
-    // For a single mouse-wheel click (~deltaY=100): target jumps to scale*0.86,
-    // animator eases over ~10 frames. For trackpad streams: target accumulates
-    // each event, animator stays continuously catching up.
-    const cur = targetScale != null ? targetScale : view.scale;
-    targetScale = clampScale(cur * Math.exp(delta));
+    zoomCoastVel = 0;
+    // Cancel any pending target-scale animation; we're driving view.scale directly.
+    if (targetScale != null) targetScale = null;
+    if (zoomAnimRaf) { cancelAnimationFrame(zoomAnimRaf); zoomAnimRaf = null; }
+    const rect = svg.getBoundingClientRect();
+    const sx = (e.clientX - rect.left) * (1000 / rect.width);
+    const sy = (e.clientY - rect.top)  * (560  / rect.height);
+    // Per-tick magnitude tuned at v45.d level.
+    const factor = Math.exp(-e.deltaY * 0.0055);
+    zoomAnchored(sx, sy, factor);
     zHint.classList.add('fade');
-    ensureZoomAnim();
+    redrawRaf();
   }, { passive: false });
 
   // Double-click to zoom in toward clicked point
