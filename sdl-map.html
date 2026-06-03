@@ -77,16 +77,82 @@
 html, body{ margin:0; padding:0; background:var(--bg); color:var(--ink); font-family:var(--font-sans); }
 body{ min-height:100vh; -webkit-font-smoothing:antialiased; }
 
+/* v45.c — single-column grid at every viewport. Filter + selected sidebars
+   are slide-in overlays (mobile-style), giving desktop users a full-width
+   map by default with two toggle buttons to summon the panels. Consistent
+   layout shape across mobile and desktop = no jank on viewport resize. */
 #app{
   display:grid;
-  grid-template-columns: 300px 1fr 320px;
+  grid-template-columns: 1fr;
   grid-template-rows: auto 1fr auto;
   grid-template-areas:
-    "header header header"
-    "left   map    right"
-    "footer footer footer";
+    "header"
+    "map"
+    "footer";
   gap:0;
   min-height:100vh;
+}
+/* Sidebars: fixed slide-in overlays, same behavior on all viewports. */
+aside{
+  position:fixed;
+  top:0; height:100dvh;
+  width: min(360px, 92vw);
+  z-index:100;
+  background:var(--bg);
+  border:0;
+  box-shadow: 0 0 60px rgba(0,0,0,0.45);
+  transition: transform .28s cubic-bezier(.2,.8,.2,1);
+  padding: 22px 22px 32px;
+  overflow-y:auto;
+  font-size: 15px;
+}
+aside.left{ left:0; transform: translateX(-100%); border-right:1px solid var(--rule); }
+aside.right{ right:0; transform: translateX(100%); border-left:1px solid var(--rule); }
+aside.left.open, aside.right.open{ transform: translateX(0); }
+.drawer-backdrop{
+  display:none; position:fixed; inset:0;
+  background: rgba(0,0,0,0.45);
+  backdrop-filter: blur(2px);
+  z-index:60;
+}
+body.drawer-open .drawer-backdrop{ display:block; }
+/* Floating toggle buttons — visible at every viewport now. */
+.mob-toggle{
+  position:fixed;
+  top: 88px;
+  z-index:55;
+  background:var(--surface-overlay);
+  border:1px solid var(--rule);
+  color:var(--ink);
+  padding: 10px 16px;
+  border-radius: 24px;
+  font-family:var(--font-sans);
+  font-size:13px;
+  font-weight:500;
+  letter-spacing:0.02em;
+  cursor:pointer;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+  min-height: 40px;
+  display:flex; align-items:center; gap:8px;
+  transition: background .15s, border-color .15s, transform .12s;
+}
+.mob-toggle:hover{ border-color: var(--ink-3); }
+.mob-toggle:active{ transform: scale(0.96); }
+.mob-toggle.left{ left:16px; }
+.mob-toggle.right{ right:16px; }
+.mob-toggle .badge{
+  background:var(--c-commercial); color:#fff;
+  font-size:11px; padding: 1px 7px; border-radius:10px;
+  min-width:16px; text-align:center;
+}
+.drawer-close{
+  position:absolute; top:12px; right:12px;
+  width:36px; height:36px;
+  background:var(--bg-2); border:1px solid var(--rule);
+  color:var(--ink); border-radius:8px; font-size:20px;
+  cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
 }
 
 /* Header */
@@ -263,6 +329,10 @@ aside.left{ grid-area:left; }
    routed centrally via pickMarkerFromEvent (precise nearest-by-screen-distance,
    fixes wrong-marker selection in clusters). */
 .marker{ cursor:pointer; transition: opacity .2s; pointer-events:none; }
+/* v45 leader line — drawn from dot to displaced label when the label couldn't
+   fit at any anchor close to its marker. Subtle so it doesn't add clutter. */
+.sdl-leader{ stroke: var(--ink-3); stroke-width: 0.5; opacity: 0.45;
+  pointer-events: none; vector-effect: non-scaling-stroke; }
 .marker .ring{ fill:none; stroke:currentColor; stroke-width:1; opacity:0.4; }
 .marker .core{ fill:currentColor; }
 .marker.dim{ opacity:0.08; pointer-events:none; }
@@ -656,9 +726,9 @@ footer .ident a.author:hover { color: var(--ink); border-bottom-color: var(--ink
   .tip { bottom: 64px !important; padding: 12px 14px; }
 }
 
-/* Show mobile-only elements only at narrow widths */
-.mob-only { display: none; }
-@media (max-width: 900px) { .mob-only { display: flex; } }
+/* v45.c — `.mob-only` now means "drawer toggle controls" — visible at every
+   viewport. The slide-in sidebars use the same pattern desktop and mobile. */
+.mob-only { display: flex; }
 
 
 
@@ -1505,8 +1575,8 @@ window.SDL_CATEGORIES = {
   const app = document.getElementById('app');
   app.innerHTML = `
     <header class="top">
-    <button class="mob-toggle mob-only left" id="mob-filters" aria-label="Open filters">☰</button>
-    <button class="mob-toggle mob-only right" id="mob-selected" aria-label="Open selected list">★<span class="badge" id="mob-selected-n">0</span></button>
+    <button class="mob-toggle mob-only left" id="mob-filters" aria-label="Open filters">☰ <span class="lbl">Filters</span></button>
+    <button class="mob-toggle mob-only right" id="mob-selected" aria-label="Open selected list">★ <span class="lbl">Selected</span> <span class="badge" id="mob-selected-n">0</span></button>
       <div class="brand-lockup">
         <a class="tue-logo" href="https://www.tue.nl/" target="_blank" rel="noopener" aria-label="TU Eindhoven">
           <img src="img/tue-logo.png" alt="TU Eindhoven">
@@ -1881,6 +1951,14 @@ window.SDL_CATEGORIES = {
     g.addEventListener('mouseleave', () => hideTip());
     // Click on marker = pin the tip; also handles mobile tap (mouseleave never fires on touch)
     g.addEventListener('click', e => { showTip(d, e); /* no stopPropagation — let document-level sheet handler also fire */ });
+
+    // v45: leader line — drawn BEFORE the label so the label paints on top.
+    // Only shown when label is displaced > ~markerR*2 from the dot.
+    const leader = document.createElementNS(ns,'line');
+    leader.setAttribute('class','sdl-leader');
+    leader.style.display = 'none';
+    d._leader = leader;
+    gLabels.appendChild(leader);
 
     // v24: SDL name label — appears at high zoom only. Append to gLabels (z-order on top).
     const mLabel = document.createElementNS(ns,'text');
@@ -2334,19 +2412,101 @@ function redraw(){
           }
         }
         if (best) {
-          placed.push({ x: best.bx, y: best.by, w: best.w, h: best.h });
-          d._label.style.display = 'inline';
-          d._label.setAttribute('x', d._x + best.a.dx);
-          d._label.setAttribute('y', d._y + best.a.dy);
-          d._label.setAttribute('text-anchor', best.a.ta);
-          d._label.setAttribute('font-size', fs + 'px');
-          d._label.style.opacity = d._labelFade;
-          d._lanchor = best.a;
-          d._lbox = { x: best.bx, y: best.by, w: best.w, h: best.h };
+          placed.push({
+            x: best.bx, y: best.by, w: best.w, h: best.h,
+            ta: best.a.ta, owner: d
+          });
+        }
+      }
+      // v45.b — force-directed relaxation: nudge any remaining overlaps apart
+      // along the axis of smallest overlap. The 16-anchor greedy handles most
+      // cases; this catches the residual tight-cluster overlaps. Bounded at
+      // 16 iterations with an early-out when no overlap remains. O(n²) per
+      // iter on n≈70, ≈80K ops — well under 1ms on desktop.
+      const RELAX_MAX = 16;
+      const RELAX_EPS = 0.5;
+      for (let iter = 0; iter < RELAX_MAX; iter++) {
+        let movedAny = false;
+        for (let i = 0; i < placed.length; i++) {
+          const a = placed[i];
+          for (let j = i + 1; j < placed.length; j++) {
+            const b = placed[j];
+            const ovX = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
+            const ovY = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
+            if (ovX > 0 && ovY > 0) {
+              // Resolve along the smaller-overlap axis (cheaper move).
+              const aCx = a.x + a.w/2, aCy = a.y + a.h/2;
+              const bCx = b.x + b.w/2, bCy = b.y + b.h/2;
+              if (ovX < ovY) {
+                const sign = (aCx >= bCx) ? 1 : -1;
+                const push = (ovX + 1) * 0.5;
+                a.x += sign * push;
+                b.x -= sign * push;
+              } else {
+                const sign = (aCy >= bCy) ? 1 : -1;
+                const push = (ovY + 1) * 0.5;
+                a.y += sign * push;
+                b.y -= sign * push;
+              }
+              movedAny = true;
+            }
+          }
+        }
+        if (!movedAny) break;
+      }
+      // Apply final positions to DOM + draw leader lines when displaced enough.
+      for (const p of placed) {
+        const d = p.owner;
+        let xVal;
+        if (p.ta === 'middle')      xVal = p.x + p.w / 2;
+        else if (p.ta === 'start')  xVal = p.x;
+        else                        xVal = p.x + p.w;
+        const yVal = p.y + p.h * 0.85;
+        d._label.style.display = 'inline';
+        d._label.setAttribute('x', xVal);
+        d._label.setAttribute('y', yVal);
+        d._label.setAttribute('text-anchor', p.ta);
+        d._label.setAttribute('font-size', fs + 'px');
+        d._label.style.opacity = d._labelFade;
+        d._lbox = { x: p.x, y: p.y, w: p.w, h: p.h };
+        // Leader line: draw when label center is far enough from the dot that
+        // the visual link is no longer obvious. Threshold scales with fs so
+        // big labels at high zoom still get a leader when truly displaced.
+        if (d._leader) {
+          const lcx = p.x + p.w / 2;
+          const lcy = p.y + p.h / 2;
+          const dist = Math.hypot(lcx - d._x, lcy - d._y);
+          if (dist > markerR * 2 + fs * 0.4) {
+            // Stop the line at the label's bbox edge (not the center) so it
+            // doesn't visually pierce the text.
+            const ang = Math.atan2(lcy - d._y, lcx - d._x);
+            const halfW = p.w / 2, halfH = p.h / 2;
+            // Compute closest bbox-edge point along the ray from dot to label center
+            const tx = halfW / Math.max(Math.abs(Math.cos(ang)), 0.01);
+            const ty = halfH / Math.max(Math.abs(Math.sin(ang)), 0.01);
+            const t  = Math.min(tx, ty);
+            const ex = lcx - Math.cos(ang) * t;
+            const ey = lcy - Math.sin(ang) * t;
+            // Start from just outside the dot edge so the line doesn't sit on top of it
+            const startT = (markerR + 1);
+            const sx = d._x + Math.cos(ang) * startT;
+            const sy = d._y + Math.sin(ang) * startT;
+            d._leader.setAttribute('x1', sx);
+            d._leader.setAttribute('y1', sy);
+            d._leader.setAttribute('x2', ex);
+            d._leader.setAttribute('y2', ey);
+            d._leader.style.display = 'inline';
+            d._leader.style.opacity = d._labelFade;
+          } else {
+            d._leader.style.display = 'none';
+          }
         }
       }
     } else {
-      _visible.forEach(d => { if (d._label) d._label.style.display = 'none'; });
+      _visible.forEach(d => {
+        if (d._label) d._label.style.display = 'none';
+        if (d._leader) d._leader.style.display = 'none';
+      });
     }
 
     // v18: labels stay visible during interaction (the disappear IS the lag).
@@ -2407,11 +2567,11 @@ function redraw(){
   let targetScale = null;            // null = not animating
   let zoomAnimRaf = null;
   let zoomCoastVel = 0;              // residual log-velocity from pinch release
-  // v45 — softer ease (0.22 → 0.14) gives ~240ms time-constant for a more
-  // glide-y zoom feel on both wheel and pinch.
-  const ZOOM_EASE_K = 0.14;
+  // v45.b — even softer ease (0.14 → 0.07) for a long, glide-y zoom feel.
+  // Each wheel tick or pinch flick travels noticeably further before settling.
+  const ZOOM_EASE_K = 0.07;
   const ZOOM_STOP_EPS = 0.0015;      // stop when |log(target/current)| < this
-  const ZOOM_VEL_CAP = 0.18;   // v45 — allow bigger initial coast velocity
+  const ZOOM_VEL_CAP = 0.30;   // v45.b — allow much bigger initial coast velocity
 
   function ensureZoomAnim(){
     if (zoomAnimRaf) return;
@@ -2420,7 +2580,7 @@ function redraw(){
       let diff = targetScale != null ? Math.log(targetScale / view.scale) : 0;
       // Apply pinch-release coast: extra log-velocity that decays per frame
       const extra = zoomCoastVel;
-      zoomCoastVel *= 0.93;   // v45 — slower decay → longer coast (was 0.86)
+      zoomCoastVel *= 0.97;   // v45.b — much slower decay → very long coast
       if (Math.abs(extra) < 0.001) zoomCoastVel = 0;
       // Move toward target + add coast contribution
       const dLog = diff * ZOOM_EASE_K + extra;
@@ -2748,7 +2908,10 @@ function redraw(){
   svg.addEventListener('wheel', (e) => {
     e.preventDefault();
     zoomCoastVel = 0;   // wheel input dominates any residual pinch coast
-    const delta = -e.deltaY * 0.0015;
+    // v45.b — bump per-tick magnitude 0.0015 → 0.0028 so each wheel notch /
+    // trackpad event covers more zoom range. With the softer ease + slower
+    // coast decay, this gives "fewer gestures to reach the zoom level you want."
+    const delta = -e.deltaY * 0.0028;
     // Each wheel event moves the target forward; the animator catches up.
     // For a single mouse-wheel click (~deltaY=100): target jumps to scale*0.86,
     // animator eases over ~10 frames. For trackpad streams: target accumulates
