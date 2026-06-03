@@ -2995,6 +2995,17 @@ function redraw(){
   // which dot was actually closest to the cursor).
   let _hoveredPicked = null;
   let _lastHoverEvt = null;
+  // v45.f — distance from cursor to a marker in screen-CSS px.
+  function cursorDistToMarker(e, d){
+    const rect = svg.getBoundingClientRect();
+    const scale = Math.min(rect.width / 1000, rect.height / 560);
+    if (scale <= 0 || !d || d._x == null) return Infinity;
+    const offX = (rect.width - 1000 * scale) / 2;
+    const offY = (rect.height -  560 * scale) / 2;
+    const mx = rect.left + offX + d._x * scale;
+    const my = rect.top  + offY + d._y * scale;
+    return Math.hypot(e.clientX - mx, e.clientY - my);
+  }
   svg.addEventListener('pointermove', (e) => {
     // Only meaningful for mouse/pen hover; touch is handled via tap → click.
     if (e.pointerType === 'touch') return;
@@ -3003,12 +3014,31 @@ function redraw(){
     if (picked) {
       _lastHoverEvt = { clientX: e.clientX, clientY: e.clientY };
       if (picked !== _hoveredPicked) {
+        // v45.f — hover stickiness: don't switch markers unless the new pick
+        // is meaningfully closer than the currently-held one. Eliminates the
+        // "the highlighted dot jumps to a neighbour as I aim my click" bug.
+        if (_hoveredPicked) {
+          const dHeld = cursorDistToMarker(e, _hoveredPicked);
+          const dNew  = cursorDistToMarker(e, picked);
+          if (dNew > dHeld - 10) {
+            // New pick isn't enough closer to justify a switch. Keep the
+            // held marker; just update tip position.
+            moveTip(e);
+            return;
+          }
+        }
         _hoveredPicked = picked;
         showTip(picked, e);
       } else {
         moveTip(e);
       }
     } else if (_hoveredPicked) {
+      // Don't drop the held marker if we're still within ~2× the pick radius.
+      const dHeld = cursorDistToMarker(e, _hoveredPicked);
+      if (dHeld < PICK_RADIUS_MOUSE_PX * 2) {
+        moveTip(e);
+        return;
+      }
       _hoveredPicked = null;
       _lastHoverEvt = null;
       hideTip();
