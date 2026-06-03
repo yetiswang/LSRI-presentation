@@ -148,6 +148,11 @@ aside.right.open{ border-left: 1px solid var(--rule); }
 }
 .mob-toggle:hover{ border-color: var(--ink-3); background: var(--bg-3); }
 .mob-toggle:active{ transform: translateY(-50%) scale(.95); }
+/* v45.g — when a marker tip is showing, pull-tabs become pointer-transparent
+   so a click on top of them routes to the hovered marker instead of opening
+   the drawer. Fixes UK ARIA / DP Technology and any other marker that
+   projects close to the viewport edge. */
+body.marker-hovered .mob-toggle{ pointer-events: none; }
 .mob-toggle.left{
   left: 0; transform: translateY(-50%);
   border-left: 0;
@@ -2840,6 +2845,12 @@ function redraw(){
     cancelInertia();                 // any touch cancels rotation inertia
     stopZoomInertia();               // v42: also cancel zoom inertia on re-touch
     velSamples = [];
+    // v45.g — lock the click target at mousedown. The user has just committed
+    // to a click; whatever is hovered NOW is what the subsequent click opens,
+    // regardless of cursor drift between down and up.
+    if (e.pointerType !== 'touch' && _hoveredPicked) {
+      _pendingClickTarget = _hoveredPicked;
+    }
     // Always record this pointer's start position
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, startX: e.clientX, startY: e.clientY, captured: false });
     if (pointers.size === 2) {
@@ -3027,6 +3038,18 @@ function redraw(){
   // which dot was actually closest to the cursor).
   let _hoveredPicked = null;
   let _lastHoverEvt = null;
+  // v45.g — mousedown-captured target. When the user commits to a click
+  // (pointerdown over the svg with a marker tooltip showing), the marker
+  // is locked at that moment. The subsequent click ALWAYS routes to it,
+  // regardless of cursor drift between down and up. Fixes "I clicked the
+  // dot I was hovering but a neighbour fired" — including the edge-tab
+  // case where pull-tabs sat on top of UK ARIA / DP Technology.
+  let _pendingClickTarget = null;
+  function setHoveredPicked(d){
+    _hoveredPicked = d;
+    if (d) document.body.classList.add('marker-hovered');
+    else document.body.classList.remove('marker-hovered');
+  }
   // v45.f — distance from cursor to a marker in screen-CSS px.
   function cursorDistToMarker(e, d){
     const rect = svg.getBoundingClientRect();
@@ -3046,32 +3069,26 @@ function redraw(){
     if (picked) {
       _lastHoverEvt = { clientX: e.clientX, clientY: e.clientY };
       if (picked !== _hoveredPicked) {
-        // v45.f — hover stickiness: don't switch markers unless the new pick
-        // is meaningfully closer than the currently-held one. Eliminates the
-        // "the highlighted dot jumps to a neighbour as I aim my click" bug.
         if (_hoveredPicked) {
           const dHeld = cursorDistToMarker(e, _hoveredPicked);
           const dNew  = cursorDistToMarker(e, picked);
           if (dNew > dHeld - 10) {
-            // New pick isn't enough closer to justify a switch. Keep the
-            // held marker; just update tip position.
             moveTip(e);
             return;
           }
         }
-        _hoveredPicked = picked;
+        setHoveredPicked(picked);
         showTip(picked, e);
       } else {
         moveTip(e);
       }
     } else if (_hoveredPicked) {
-      // Don't drop the held marker if we're still within ~2× the pick radius.
       const dHeld = cursorDistToMarker(e, _hoveredPicked);
       if (dHeld < PICK_RADIUS_MOUSE_PX * 2) {
         moveTip(e);
         return;
       }
-      _hoveredPicked = null;
+      setHoveredPicked(null);
       _lastHoverEvt = null;
       hideTip();
     }
@@ -3080,12 +3097,12 @@ function redraw(){
   // Tap/click on empty map (not on a marker) closes the tip
   svg.addEventListener('click', (e) => {
     if (wasDirectTapClick(e)) return;
-    // v45.e — hover-click consistency: WHATEVER is currently hovered wins.
-    // Browsers fire pointermove before click, so _hoveredPicked reflects the
-    // marker the user is seeing the tip for. No distance check — small cursor
-    // jitter between move and click no longer rerolls the pick. If the cursor
-    // moved away, pointermove already cleared _hoveredPicked = null.
-    let picked = _hoveredPicked || pickMarkerFromEvent(e, pickRadiusForEvent(e));
+    // v45.g — priority order:
+    //   1. _pendingClickTarget captured at mousedown wins always.
+    //   2. _hoveredPicked at click time (fallback for synthesised clicks).
+    //   3. pickMarkerFromEvent on the click coords (no prior hover).
+    let picked = _pendingClickTarget || _hoveredPicked || pickMarkerFromEvent(e, pickRadiusForEvent(e));
+    _pendingClickTarget = null;
     if (picked) {
       routePickedMarker(picked, e);
       return;
