@@ -2572,10 +2572,12 @@ function redraw(){
       // viewing distance = smaller reads OK). Cap by screen pixels too.
       const rect2 = svg.getBoundingClientRect();
       const scrScale2 = Math.min(rect2.width / 1000, rect2.height / 560) || 0.39;
-      // v45.s — bumped again per user "still small at 17, try 20".
-      // Touch body 17 → 20 CSS-px, cap 28 → 32. Desktop unchanged.
-      const targetCssPx = isTouch ? 20 : 12;
-      const maxCssPx    = isTouch ? 32 : 18;
+      // v45.t — user: "Make it 30?" Touch body 20 → 30 CSS-px, cap 32 → 44.
+      // 30 CSS-px is large-text / accessibility range — chunky but maybe
+      // the right call on a small phone screen with thumb-reading distance.
+      // Desktop unchanged at 12 / 18.
+      const targetCssPx = isTouch ? 30 : 12;
+      const maxCssPx    = isTouch ? 44 : 18;
       const labelBaseFs = targetCssPx / scrScale2;       // SVG-internal that renders as targetCssPx CSS-px
       const fsCap       = maxCssPx / scrScale2;          // SVG-internal cap (renders as maxCssPx)
       const fs = Math.min(fsCap, Math.max(labelBaseFs, labelBaseFs * zoomGrowth));
