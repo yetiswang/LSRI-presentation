@@ -2711,7 +2711,24 @@ function redraw(){
               if (overlaps >= 2) break;
             }
           }
-          const score = overlaps * 10 + i;
+          // v45.ah — penalise anchors that put the label box on top of
+          // OTHER pins' dots. Without this, in tight clusters (London,
+          // Boston) a placed label could sit directly over a different
+          // pin's visible core, hiding it and routing the dot's clicks
+          // to the wrong owner.
+          let pinOverlap = 0;
+          for (const other of _visible) {
+            if (other === d || other._x == null) continue;
+            const r = other._visualRadius || 8;
+            const cx = Math.max(bx, Math.min(other._x, bx + w));
+            const cy = Math.max(by, Math.min(other._y, by + h));
+            const ddx = other._x - cx, ddy = other._y - cy;
+            if (ddx*ddx + ddy*ddy < r*r) {
+              pinOverlap++;
+              if (pinOverlap >= 2) break;
+            }
+          }
+          const score = overlaps * 10 + pinOverlap * 6 + i;
           if (score < bestScore) {
             bestScore = score;
             best = { a, bx, by, w, h };
@@ -3218,14 +3235,14 @@ function redraw(){
   // `thresholdPx` CSS pixels, or null. Iterates the post-render position array
   // exposed by redraw(). O(n) on 73 markers — fast.
   function pickMarkerFromEvent(e, thresholdPx){
-    // v45.j — if the user clicked on a label (or its leader), route directly
-    // to the owning marker. Labels get pushed around by the placement +
-    // relaxation passes, so a nearest-dot search would return the wrong
-    // marker. The label IS the visual element the user thinks they clicked.
-    if (e && e.target) {
-      const lbl = e.target.closest && e.target.closest('.sdl-label');
-      if (lbl && lbl._owner) return lbl._owner;
-    }
+    // v45.ah — two-stage priority. Run the halo-based hit-test FIRST: if
+    // the cursor is inside any pin's visible halo, that pin wins —
+    // important when labels sit on top of OTHER pins' dots (the v45.j
+    // label-short-circuit was opening the label's owner instead of the
+    // dot under the cursor). If no halo hit AND cursor is over a label,
+    // fall back to the label's owner (handles clicks on displaced labels
+    // far from any dot). Cleanly resolves the "labels overlap pins,
+    // clicking pins doesn't fire menu" cluster bug.
     const list = window.__sdlLastVisible;
     if (!list || !list.length) return null;
     const rect = svg.getBoundingClientRect();
@@ -3258,7 +3275,13 @@ function redraw(){
         best = d;
       }
     }
-    return best;
+    if (best) return best;
+    // Fallback: cursor outside all halos but on a label → open label owner.
+    if (e && e.target) {
+      const lbl = e.target.closest && e.target.closest('.sdl-label');
+      if (lbl && lbl._owner) return lbl._owner;
+    }
+    return null;
   }
 
   // v45 — central hover. svg-level pointermove picks the precise marker by
