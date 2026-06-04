@@ -2059,7 +2059,12 @@ window.SDL_CATEGORIES = {
     g.addEventListener('mousemove', e => moveTip(e));
     g.addEventListener('mouseleave', () => hideTip());
     // Click on marker = pin the tip; also handles mobile tap (mouseleave never fires on touch)
-    g.addEventListener('click', e => { showTip(d, e); /* no stopPropagation — let document-level sheet handler also fire */ });
+    // v45.ai — REMOVED per-marker click handler. It set _tipOwner to
+    // whichever marker DOM the click happened to land on (browser hit-test
+    // geometry), which races with the SVG-level halo-based pick in dense
+    // clusters where halos overlap. The SVG click handler with v45.ah
+    // halo-first pickMarkerFromEvent is the authoritative path and gives
+    // deterministic results: cursor-inside-halo wins, always.
 
     // v45: leader line — drawn BEFORE the label so the label paints on top.
     const leader = document.createElementNS(ns,'line');
