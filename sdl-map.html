@@ -1592,25 +1592,54 @@ aside.left, aside.right, .sheet, .sheet-body {
 .wm-cta:hover { background: var(--bg); color: var(--ink); }
 .wm-cta:focus-visible { outline: 2px solid var(--ink-3); outline-offset: 2px; }
 
-/* Persistent ⓘ reopen button (corner pill) */
+/* Persistent ⓘ reopen pill — anchored top-left of the map area (below header).
+   Resting state blends with the map background; hover reveals it clearly as a
+   tap target with stroke, glow, and slight lift. */
 .wm-reopen {
   position: fixed;
-  bottom: 18px; right: 18px;
-  z-index: 8500;
-  width: 36px; height: 36px;
+  top: 95px; left: 22px;
+  z-index: 35;                /* under sidebars (40) so panels slide over it */
+  width: 34px; height: 34px;
   display: flex; align-items: center; justify-content: center;
-  background: var(--surface-overlay);
-  border: 1px solid var(--rule);
+  background: oklch(from var(--bg) l c h / 0.65);
+  border: 1px solid var(--rule-2);
   border-radius: 50%;
-  color: var(--ink-2);
-  font-family: var(--font-sans); font-size: 17px; font-weight: 500;
-  cursor: pointer;
-  box-shadow: 0 4px 12px oklch(0 0 0 / 0.18);
-  transition: color 0.16s, border-color 0.16s, transform 0.18s;
+  color: var(--ink-3);
+  font-family: var(--font-sans); font-size: 16px; font-weight: 600;
   font-style: italic;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow: 0 2px 8px oklch(0 0 0 / 0.10);
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease,
+    box-shadow 0.22s ease,
+    transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
 }
-.wm-reopen:hover { color: var(--ink); border-color: var(--ink-3); transform: translateY(-1px); }
-.wm-reopen:focus-visible { outline: 2px solid var(--ink-3); outline-offset: 3px; }
+.wm-reopen:hover {
+  background: var(--bg);
+  border-color: var(--ink);
+  color: var(--ink);
+  box-shadow:
+    0 0 0 4px oklch(from var(--ink) l c h / 0.08),
+    0 8px 22px oklch(0 0 0 / 0.22);
+  transform: translateY(-2px) scale(1.06);
+}
+.wm-reopen:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+.wm-reopen:active {
+  transform: translateY(-1px) scale(1.02);
+}
+@media (max-width: 768px) {
+  .wm-reopen { top: 78px; left: 14px; }
+}
+@media (max-width: 480px) {
+  .wm-reopen { top: 70px; left: 10px; width: 30px; height: 30px; font-size: 14px; }
+}
 
 @media (max-width: 560px) {
   .wm-card { padding: 28px 22px 22px; }
