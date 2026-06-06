@@ -77,46 +77,64 @@
 html, body{ margin:0; padding:0; background:var(--bg); color:var(--ink); font-family:var(--font-sans); }
 body{ min-height:100vh; -webkit-font-smoothing:antialiased; }
 
-/* v45.d — collapsible sidebars as IN-FLOW grid columns (not overlays).
-   When open, they look like the previous always-on layout. When closed, the
-   map fills the full width. No backdrop, no blur. Both sides toggle
-   independently — user can have neither / left only / right only / both. */
+/* v46 — collapsible sidebars as FLOATING OVERLAYS (not in-flow columns).
+   Reverts v45.d's grid-column model: the map keeps a stable aspect ratio
+   regardless of which side is open. Both panels toggle independently and
+   slide in from the edge over the map.
+   Header + footer stay above via z-index so panels slide *under* them. */
 #app{
   display:grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: 1fr;
   grid-template-rows: auto 1fr auto;
   grid-template-areas:
-    "header header header"
-    "left   map    right"
-    "footer footer footer";
+    "header"
+    "map"
+    "footer";
   gap:0;
   min-height:100vh;
 }
 aside{
-  width: 0;
-  padding: 0;
-  border: 0;
-  overflow: hidden;
-  visibility: hidden;            /* v45.e — fully hidden when closed */
-  background: var(--bg);
-  transition: width .28s cubic-bezier(.2,.8,.2,1),
-              padding .28s cubic-bezier(.2,.8,.2,1),
-              border-width .28s cubic-bezier(.2,.8,.2,1),
-              visibility 0s linear .28s;   /* delay until width settles */
-  font-size: 14px;
-}
-aside.open{
+  position: fixed;
+  top: 0;
+  bottom: 0;
   width: clamp(280px, 22vw, 340px);
   padding: 24px 22px 24px;
+  background: var(--bg);
   overflow-y: auto;
+  z-index: 40;
+  font-size: 14px;
+  /* Soft shadow signals 'floating layer above the map'. */
+  box-shadow: 0 0 24px oklch(0 0 0 / 0.18);
+  transition: transform .28s cubic-bezier(.2,.8,.2,1),
+              visibility 0s linear .28s;
+  visibility: hidden;
+}
+aside.left{
+  left: 0;
+  transform: translateX(-100%);
+  border-right: 1px solid var(--rule);
+}
+aside.right{
+  right: 0;
+  transform: translateX(100%);
+  border-left: 1px solid var(--rule);
+}
+aside.open{
   visibility: visible;
-  transition: width .28s cubic-bezier(.2,.8,.2,1),
-              padding .28s cubic-bezier(.2,.8,.2,1),
-              border-width .28s cubic-bezier(.2,.8,.2,1),
+  transition: transform .28s cubic-bezier(.2,.8,.2,1),
               visibility 0s linear 0s;
 }
-aside.left.open{ border-right: 1px solid var(--rule); }
-aside.right.open{ border-left: 1px solid var(--rule); }
+aside.left.open{ transform: translateX(0); }
+aside.right.open{ transform: translateX(0); }
+
+/* Header + footer must sit ABOVE the floating panels (they fill the
+   vertical edges with the page background and would otherwise be covered
+   by the panel slide-in). */
+header.top, footer{
+  position: relative;
+  z-index: 60;
+  background: var(--bg);
+}
 /* v45.e — pull-tab buttons. Edge-anchored vertical handles that invite a
    pull-out gesture. Mobile reverts to floating pill style (overrides below). */
 .mob-toggle{
